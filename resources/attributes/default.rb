@@ -1,6 +1,5 @@
 default['firewalld']['user'] = 'firewall'
 
-# Define roles with their respective firewall rules
 default['firewall']['roles'] = {
   'manager' => {
     'home_zone' => {

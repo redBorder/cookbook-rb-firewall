@@ -53,11 +53,10 @@ action :add do
   if is_manager? && sync_ip != ip_addr
     rich_rules = shell_out!('firewall-cmd --zone=public --list-rich-rules').stdout
     existing_ips = get_existing_ips_for_port(rich_rules)
-
     if ip_address_ips.empty?
       existing_ips.each do |ip|
         if rich_rules.match(/source address=\"#{ip}\".*port port=\"9092\".*protocol=\"tcp\"/)
-          remove_kafka_rule_for_ips(ip, rich_rules)
+          manage_kafka_rule_for_ips(ip, rich_rules)
         end
       end
     else
@@ -74,7 +73,6 @@ action :add do
       end
     end
   end
-
   reload!
 
   Chef::Log.info('Firewall configuration has been applied.')
