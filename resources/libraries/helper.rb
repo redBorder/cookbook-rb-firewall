@@ -4,96 +4,38 @@ module Firewall
     require 'socket'
     include ::Chef::Mixin::ShellOut
 
-    def fetch_existing_rules(zone)
-      ports = shell_out!("firewall-cmd --zone=#{zone} --list-ports").stdout.strip.split(/\s+/)
-      protos = shell_out!("firewall-cmd --zone=#{zone} --list-protocols").stdout.strip.split(/\s+/)
-      rich_rules = shell_out!("firewall-cmd --zone=#{zone} --list-rich-rules").stdout.strip.split(/\n/)
-      return ports, protos, rich_rules
-    end
-
-    def configure_firewalld_rules
-      if is_manager?
-        ports_home, protos_home, rich_rules_home = fetch_existing_rules('home')
-        apply_zone_rules(node['firewall']['roles']['manager']['home_zone'], 'home', ports_home, protos_home, rich_rules_home)
-
-        ports_pub, protos_pub, rich_rules_pub = fetch_existing_rules('public')
-        apply_zone_rules(node['firewall']['roles']['manager']['public_zone'], 'public', ports_pub, protos_pub, rich_rules_pub)
-      end
-      if is_proxy?
-        ports_pub, protos_pub, rich_rules_pub = fetch_existing_rules('public')
-        apply_zone_rules(node['firewall']['roles']['proxy']['public_zone'], 'public', ports_pub, protos_pub, rich_rules_pub)
-      end
-      if is_ips?
-        ports_pub, protos_pub, rich_rules_pub = fetch_existing_rules('public')
-        apply_zone_rules(node['firewall']['roles']['ips']['public_zone'], 'public', ports_pub, protos_pub, rich_rules_pub)
-      end
-    end
-
-    def apply_zone_rules(zone_rules, zone, existing_ports, existing_protocols, existing_rich_rules)
-      return if zone_rules.nil?
-      zone_rules['tcp_ports']&.each { |port| apply_rule(:port, port, zone, existing_ports, 'tcp') }
-      zone_rules['udp_ports']&.each { |port| apply_rule(:port, port, zone, existing_ports, 'udp') }
-      zone_rules['protocols']&.each { |protocol| apply_rule(:protocol, protocol, zone, existing_protocols) }
-      zone_rules['rich_rules']&.each { |rule| apply_rule(:rich_rule, rule, zone, existing_rich_rules) }
-    end
-
-    def apply_rule(type, value, zone, existing_items, protocol = nil)
-      value = "#{value}/#{protocol || 'tcp'}" if type == :port
-      unless existing_items.include?(value)
-        case type
-        when :port
-          firewall_rule "Allow port #{value} in #{zone} zone" do
-            port value
-            protocol protocol
-            zone zone
-            action :create
-            permanent true
-          end
-        when :protocol
-          firewall_rule "Allow protocol #{value} in #{zone} zone" do
-            protocols value
-            zone zone
-            action :create
-            permanent true
-          end
-        when :rich_rule
-          firewall_rule "Adding rich rule #{value} in #{zone} zone" do
-            rules value
-            zone zone
-            action :create
-            permanent true
-          end
-        end
-      end
-    end
-
-    def manage_kafka_rule_for_ips(ip, rich_rules)
-      unless rich_rules.include?(ip)
-        firewall_rule "Open Kafka port 9092 for manager ips" do
-          rules "rule family='ipv4' source address=#{ip} port port=9092 protocol=tcp accept"
-          zone 'public'
+    def apply_rule(type, value, zone, protocol = nil)
+      case type
+      when :port
+        firewall_rule "Allow port #{value}/#{protocol} in #{zone} zone" do
+          port value
+          protocol protocol
+          zone zone
           action :create
           permanent true
+          not_if "firewall-cmd --permanent --zone=#{zone} --query-port=#{value}/#{protocol}"
         end
-      end
-    end
-
-    def remove_kafka_rule_for_ips(ip, rich_rules)
-      if rich_rules.include?(ip)
-        firewall_rule "Remove Kafka port 9092 for manager IPs" do
-          rules "rule family='ipv4' source address=#{ip} port port=9092 protocol=tcp accept"
-          zone 'public'
-          action :delete
+      when :protocol
+        firewall_rule "Allow protocol #{value} in #{zone} zone" do
+          protocols value
+          zone zone
+          action :create
           permanent true
+          not_if "firewall-cmd --permanent --zone=#{zone} --query-protocol=#{value}"
+        end
+      when :rich_rule
+        firewall_rule "Adding rich rule #{value} in #{zone} zone" do
+          rules value
+          zone zone
+          action :create
+          permanent true
+          not_if "firewall-cmd --permanent --zone=#{zone} --query-rich-rule='#{value}'"
         end
       end
     end
 
-    def reload!
-      shell_out!('firewall-cmd --reload')
-    end
-
-    def get_existing_ips_for_port(rich_rules)
+    def get_existing_ip_addresses_in_rules
+      rich_rules = shell_out!('firewall-cmd --zone=public --list-rich-rules').stdout
       existing_ips = []
       rich_rules.split("\n").each do |rule|
         if rule.include?('port="9092"')
@@ -131,7 +73,7 @@ module Firewall
       node.role?('ips-sensor') || node.role?('ipscp-sensor')
     end
 
-    def get_ip_of_manager_ips
+    def get_ip_of_manager_ips_nodes
       sensors = search(:node, 'role:ips-sensor').sort
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
