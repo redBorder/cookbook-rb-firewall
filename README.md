@@ -10,6 +10,14 @@ cookbook to install and configure redborder firewall
 
 - Chef 15.1 or later
 
+## Building
+
+- Build rpm package for redborder platform:
+  * git clone https://github.com/redborder/redborder-rb-firewall.git
+  * cd redborder-rb-firewall
+  * make
+  * RPM packages is under packaging/rpm/pkgs/
+
 ## Contributing
 
 1. Fork the repository on Github
