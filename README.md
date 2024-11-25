@@ -13,8 +13,8 @@ cookbook to install and configure redborder firewall
 ## Building
 
 - Build rpm package for redborder platform:
-  * git clone https://github.com/redborder/redborder-rb-firewall.git
-  * cd redborder-rb-firewall
+  * git clone https://github.com/redborder/cookbook-rb-firewall.git
+  * cd cookbook-rb-firewall
   * make
   * RPM packages is under packaging/rpm/pkgs/
 
