@@ -43,9 +43,9 @@ action :add do
 
   # Applying firewall ports, protocols, and rich rules based on zones
   roles = {
-    'manager' => ['home', 'public'],
-    'proxy' => ['public'],
-    'ips' => ['public']
+    'manager' => %w[home public],
+    'proxy' => %w[public],
+    'ips' => %w[public],
   }
   roles.each do |role, zones|
     next unless send("is_#{role}?")
