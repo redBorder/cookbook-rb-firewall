@@ -5,7 +5,7 @@ BuildArch: noarch
 Summary: Firewall cookbook to install and configure it in redborder environments
 
 License: AGPL 3.0
-URL: https://github.com/redBorder/cookbook-firewall
+URL: https://github.com/redBorder/cookbook-rb-firewall
 Source0: %{name}-%{version}.tar.gz
 
 %description
