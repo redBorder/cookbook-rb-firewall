@@ -45,5 +45,7 @@ esac
 %doc
 
 %changelog
+* Mon Nov 25 2024 Luis J. Blanco <ljblanco@redborder.com>
+- remove execution permission to the full path of the cookbook
 * Tue Oct 08 2024 Nils Verschaeve <nverschaeve@redborder.com>
 - first spec version
