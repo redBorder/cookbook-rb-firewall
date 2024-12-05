@@ -1,6 +1,17 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.0.2
+
+  - Luis Blanco
+    - [edc37b1] open rsyslog port
+    - [6d82494] remove execution permission. Cookbooks generally don't need it
+    - [bb31d1b] fix wrong pkg name
+    - [8d29494] cookbook build instructions
+  - nilsver
+    - [b857350] fix helper file and refactor
+    - [7792e08] add workflow
+
 ## 0.0.1
 - Nils Verschaeve
     - Initial release of firewall cookbook
