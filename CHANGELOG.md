@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.1.0
+
+  - manegron
+    - [530f692] Merge pull request #2 from redBorder/fix_missing_ports
+    - [18d94f5] Add missing ports
+
 ## 0.0.2
 
   - Luis Blanco
