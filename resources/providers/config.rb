@@ -13,6 +13,12 @@ action :add do
     flush_cache [:before]
   end
 
+  service 'firewalld' do
+    service_name 'firewalld'
+    supports status: true, reload: true, restart: true, start: true, enable: true
+    action [:enable, :start]
+  end
+
   template '/etc/firewalld.conf' do
     source 'firewalld.conf.erb'
     cookbook 'rb-firewall'
@@ -30,6 +36,7 @@ action :add do
       action :create
       permanent true
       not_if "firewall-cmd --zone=home --query-interface=#{sync_interface}"
+      notifies :reload, 'service[firewalld]', :delayed
     end
 
     firewall_rule 'Add sync subnet to home' do
@@ -38,6 +45,7 @@ action :add do
       action :create
       permanent true
       not_if "firewall-cmd --zone=home --query-source=#{sync_subnet}"
+      notifies :reload, 'service[firewalld]', :delayed
     end
   end
 
@@ -73,6 +81,7 @@ action :add do
           action :delete
           permanent true
           only_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
+          notifies :reload, 'service[firewalld]', :delayed
         end
       end
     end
@@ -84,14 +93,9 @@ action :add do
         action :create
         permanent true
         not_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
+        notifies :reload, 'service[firewalld]', :delayed
       end
     end
-  end
-
-  service 'firewalld' do
-    service_name 'firewalld'
-    supports status: true, reload: true, restart: true, start: true, enable: true
-    action [:enable, :start, :reload]
   end
 
   Chef::Log.info('Firewall configuration has been applied.')

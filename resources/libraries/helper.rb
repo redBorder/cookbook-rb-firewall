@@ -14,6 +14,7 @@ module Firewall
           action :create
           permanent true
           not_if "firewall-cmd --permanent --zone=#{zone} --query-port=#{value}/#{protocol}"
+          notifies :reload, 'service[firewalld]', :delayed
         end
       when :protocol
         firewall_rule "Allow protocol #{value} in #{zone} zone" do
@@ -22,6 +23,7 @@ module Firewall
           action :create
           permanent true
           not_if "firewall-cmd --permanent --zone=#{zone} --query-protocol=#{value}"
+          notifies :reload, 'service[firewalld]', :delayed
         end
       when :rich_rule
         firewall_rule "Adding rich rule #{value} in #{zone} zone" do
@@ -30,6 +32,7 @@ module Firewall
           action :create
           permanent true
           not_if "firewall-cmd --permanent --zone=#{zone} --query-rich-rule='#{value}'"
+          notifies :reload, 'service[firewalld]', :delayed
         end
       end
     end
