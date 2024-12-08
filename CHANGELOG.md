@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.1.1
+
+  - manegron
+    - [3aa377e] Merge pull request #4 from redBorder/avoid_reloading_all_time
+    - [a0b70bc] Avoid reloading all time
+
 ## 0.1.0
 
   - manegron
