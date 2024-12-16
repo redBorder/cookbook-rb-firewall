@@ -81,7 +81,6 @@ action :add do
           action :delete
           permanent true
           only_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-          notifies :reload, 'service[firewalld]', :delayed
         end
       end
     end
@@ -93,7 +92,6 @@ action :add do
         action :create
         permanent true
         not_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-        notifies :reload, 'service[firewalld]', :delayed
       end
     end
   end
