@@ -1,2 +1,0 @@
-Chef::Log.error "\n\n\n\n\nis_manager #{is_manager?}\nsync_ip #{sync_ip}\nip_addr #{ip_addr}\n\n\n\n"
-
