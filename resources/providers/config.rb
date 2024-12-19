@@ -81,7 +81,6 @@ action :add do
           action :delete
           permanent true
           only_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-          notifies :reload, 'service[firewalld]', :delayed
         end
       end
     end
@@ -93,9 +92,20 @@ action :add do
         action :create
         permanent true
         not_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-        notifies :reload, 'service[firewalld]', :delayed
       end
     end
+  end
+
+  # Reload firewalld only if the runtime rules are different than the permanent rules
+  # (a rule has been added/deleted and the service needs to be reloaded)
+  execute 'reload_firewalld' do
+    command 'firewall-cmd --reload'
+    only_if do
+      runtime_rules = `firewall-cmd --zone=public --list-rich-rules`.strip
+      permanent_rules = `firewall-cmd --permanent --zone=public --list-rich-rules`.strip
+      runtime_rules != permanent_rules
+    end
+    action :run
   end
 
   Chef::Log.info('Firewall configuration has been applied.')
