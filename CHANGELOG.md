@@ -1,6 +1,13 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.1.2
+
+  - Pablo Pérez
+    - [d7ab30b] delete random file
+    - [39f0883] deleted unnecesary notifies
+    - [f6ae60e] Check if needs to reload or not
+
 ## 0.1.1
 
   - manegron
