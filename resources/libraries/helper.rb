@@ -93,7 +93,7 @@ module Firewall
     end
 
     def get_ip_of_manager_ips_nodes
-      sensors = search(:node, 'role:ips-sensor').sort
+      sensors = search(:node, '(role:ips-sensor OR role:intrusion-sensor)').sort
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
   end
