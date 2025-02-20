@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.1.3
+
+  - Miguel Alvarez
+    - [1d522d5] Add port 80 to firewall (public zone)
+
 ## 0.1.2
 
   - Pablo Pérez
