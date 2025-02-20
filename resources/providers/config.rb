@@ -102,8 +102,10 @@ action :add do
     end
 
     if is_manager?
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'tcp')
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'udp')
+      target_addresses.each do |ip|
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'tcp')
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'udp')
+      end
     end
   end
 
