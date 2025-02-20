@@ -67,32 +67,43 @@ action :add do
     end
   end
 
-  # Managing port 9092 on the manager only for that specific IPS
   if is_manager? && sync_ip != ip_addr
-    existing_addresses = get_existing_ip_addresses_in_rules
-    aux = ip_address_ips_nodes.empty? ? existing_addresses : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
+    # Managing port 9092 on the manager only for that specific IPS
+    port = 9092
+    existing_addresses = get_existing_ip_addresses_in_rules(port)
+    allowed_addresses = ip_address_ips_nodes.empty? ? existing_addresses : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
 
-    unless ip_address_ips_nodes.empty?
-      ips_to_remove = existing_addresses - aux
-      ips_to_remove.each do |ip|
-        firewall_rule "Remove Kafka port 9092 for IP: #{ip}" do
-          rules "rule family='ipv4' source address=#{ip} port port=9092 protocol=tcp accept"
-          zone 'public'
-          action :delete
-          permanent true
-          only_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-        end
-      end
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :delete }, 'public', 'tcp')
     end
 
-    aux.each do |ip|
-      firewall_rule "Open Kafka port 9092 for IP: #{ip}" do
-        rules "rule family='ipv4' source address=#{ip} port port=9092 protocol=tcp accept"
-        zone 'public'
-        action :create
-        permanent true
-        not_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-      end
+    allowed_addresses.each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    end
+  end
+
+  unless is_ips?
+    # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+    port = 514
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    query = 'role:ips-sensor OR role:proxy-sensor OR role:manager OR role:vault-sensor'
+    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by { |node| node.name }
+    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
+    target_addresses = allowed_addresses.empty? ? existing_addresses : allowed_addresses
+
+    (existing_addresses - target_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+
+    target_addresses.each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+    end
+
+    if is_manager?
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'udp')
     end
   end
 
