@@ -87,7 +87,7 @@ action :add do
     port = 514
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     query = 'role:ips-sensor OR role:proxy-sensor OR role:manager OR role:vault-sensor'
-    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by { |node| node.name }
+    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
     allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? existing_addresses : allowed_addresses
 
