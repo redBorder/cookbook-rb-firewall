@@ -34,14 +34,30 @@ module Firewall
           not_if "firewall-cmd --permanent --zone=#{zone} --query-rich-rule='#{value}'"
           notifies :reload, 'service[firewalld]', :delayed
         end
+      when :filter_by_ip
+        name = value[:name]
+        port = value[:port]
+        ip = value[:ip]
+        action = value[:action]
+        rich_rule = "rule family='ipv4' source address='#{ip}' port port='#{port}' protocol='#{protocol}' accept"
+        firewall_rule "#{action} #{name} port #{port}/#{protocol} for IP: #{ip}" do
+          rules rich_rule
+          action action
+          permanent true
+          if action == :create
+            not_if "firewall-cmd --permanent --zone=#{zone} --query-rich-rule='#{rich_rule}'"
+          else
+            only_if "firewall-cmd --permanent --zone=#{zone} --query-rich-rule='#{rich_rule}'"
+          end
+        end
       end
     end
 
-    def get_existing_ip_addresses_in_rules
+    def get_existing_ip_addresses_in_rules(port)
       rich_rules = shell_out!('firewall-cmd --zone=public --list-rich-rules').stdout
       existing_ips = []
       rich_rules.split("\n").each do |rule|
-        if rule.include?('port="9092"')
+        if rule.include?("port=\"#{port}\"")
           ip_match = rule.match(/source address="([^"]+)"/)
           existing_ips << ip_match[1] if ip_match
         end
