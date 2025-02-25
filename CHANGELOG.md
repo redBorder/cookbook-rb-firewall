@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.2.0
+
+  - David Vanhoucke
+    - [9fa9cda] open port 9092 for intrusion-sensor
+
 ## 0.1.3
 
   - Miguel Alvarez
