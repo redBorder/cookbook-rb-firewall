@@ -64,22 +64,22 @@ action :add do
       existing_protocols = get_existing_protocols_in_zone(zone)
       existing_rules = get_existing_rules_in_zone(zone)
       Array(zone_rules['tcp_ports']).each do |port|
-        if !existing_tcp_ports.include?(port.to_s)
+        unless existing_tcp_ports.include?(port.to_s)
           apply_rule(:port, { port: port, action: :create }, zone, 'tcp')
         end
       end
       Array(zone_rules['udp_ports']).each do |port|
-        if !existing_udp_ports.include?(port.to_s)
+        unless existing_udp_ports.include?(port.to_s)
           apply_rule(:port, { port: port, action: :create }, zone, 'udp')
         end
       end
-      Array.(zone_rules['protocols']).each do |protocol|
-        if !existing_protocols.include?(protocol)
+      Array(zone_rules['protocols']).each do |protocol|
+        unless existing_protocols.include?(protocol)
           apply_rule(:protocol, { protocol: protocol, action: :create }, zone)
         end
       end
       Array(zone_rules['rich_rules']).each do |rule|
-        if !existing_rules.include?(rule)
+        unless existing_rules.include?(rule)
           apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
         end
       end
