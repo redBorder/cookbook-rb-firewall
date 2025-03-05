@@ -83,7 +83,7 @@ action :add do
           apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
         end
       end
-      
+
       # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
       allowed_tcp = (zone_rules['tcp_ports'] || []).map(&:to_s)
       Array(existing_tcp_ports).each do |port|
