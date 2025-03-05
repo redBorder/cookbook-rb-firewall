@@ -65,10 +65,10 @@ module Firewall
       ports = shell_out!("firewall-cmd --zone=#{zone} --list-ports").stdout
       existing_tcp_ports = []
       existing_udp_ports = []
-      ports.split(" ").each do |port|
-        port.split("/")
-        existing_tcp_ports << port.split("/")[0] if port.include?("tcp")
-        existing_udp_ports << port.split("/")[0] if port.include?("udp")
+      ports.split(' ').each do |port|
+        port.split('/')
+        existing_tcp_ports << port.split('/')[0] if port.include?('tcp')
+        existing_udp_ports << port.split('/')[0] if port.include?('udp')
       end
       [existing_tcp_ports, existing_udp_ports]
     end
@@ -76,7 +76,7 @@ module Firewall
     def get_existing_protocols_in_zone(zone)
       protocols = shell_out!("firewall-cmd --zone=#{zone} --list-protocols").stdout
       existing_protocols = []
-      protocols.split(" ").each do |protocol|
+      protocols.split(' ').each do |protocol|
         existing_protocols << protocol
       end
       existing_protocols

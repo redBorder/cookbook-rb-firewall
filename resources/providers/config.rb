@@ -63,14 +63,26 @@ action :add do
       existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
       existing_protocols = get_existing_protocols_in_zone(zone)
       existing_rules = get_existing_rules_in_zone(zone)
-      zone_rules['tcp_ports']&.each { |port|
-        apply_rule(:port, { port: port, action: :create }, zone, 'tcp') unless existing_tcp_ports.include?(port.to_s) }
-      zone_rules['udp_ports']&.each { |port|
-        apply_rule(:port, { port: port, action: :create }, zone, 'udp') unless existing_udp_ports.include?(port.to_s) }
-      zone_rules['protocols']&.each { |protocol| 
-        apply_rule(:protocol, { protocol: protocol, action: :create }, zone) unless existing_protocols.include?(protocol) }
-      zone_rules['rich_rules']&.each { |rule| 
-        apply_rule(:rich_rule, { rule: rule, action: :create }, zone) unless existing_rules.include?(rule) }
+      Array(zone_rules['tcp_ports']).each do |port|
+        if !existing_tcp_ports.include?(port.to_s)
+          apply_rule(:port, { port: port, action: :create }, zone, 'tcp')
+        end
+      end
+      Array(zone_rules['udp_ports']).each do |port|
+        if !existing_udp_ports.include?(port.to_s)
+          apply_rule(:port, { port: port, action: :create }, zone, 'udp')
+        end
+      end
+      Array.(zone_rules['protocols']).each do |protocol|
+        if !existing_protocols.include?(protocol)
+          apply_rule(:protocol, { protocol: protocol, action: :create }, zone)
+        end
+      end
+      Array(zone_rules['rich_rules']).each do |rule|
+        if !existing_rules.include?(rule)
+          apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
+        end
+      end
       
       # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
       allowed_tcp = (zone_rules['tcp_ports'] || []).map(&:to_s)
