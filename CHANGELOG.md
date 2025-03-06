@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.2.1
+
+  - Daniel Castro
+    - [534b339] Only open 514/udp for manager
+
 ## 0.2.0
 
   - David Vanhoucke
