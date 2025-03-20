@@ -102,7 +102,7 @@ action :add do
 
   if is_manager? && sync_ip != ip_addr
     # Managing port 9092 on the manager only for that specific IPS
-    port = 9092
+    port = 9092 # kafka
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
 
@@ -112,6 +112,22 @@ action :add do
 
     (allowed_addresses - existing_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    end
+
+    # Managing port 8478 on the manager only for other managers in the public zone
+    port = 8478 # redborder-cep
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    query = 'role:manager'
+    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
+    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
+    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
+    
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :create }, 'public', 'tcp')
     end
   end
 
