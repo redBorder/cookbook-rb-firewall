@@ -1,6 +1,18 @@
 # cookbook-rb-firewall
 
-cookbook to install and configure redborder firewall
+[![Build Status][build-shield]][build-url]
+[![Linters][linters-shield]][linters-url]
+[![License][license-shield]][license-url]
+
+<!-- Badges -->
+[build-shield]: https://github.com/redBorder/cookbook-rb-firewall/actions/workflows/rpm.yml/badge.svg?branch=master
+[build-url]: https://github.com/redBorder/cookbook-rb-firewall/actions/workflows/rpm.yml?query=branch%3Amaster
+[linters-shield]: https://github.com/redBorder/cookbook-rb-firewall/actions/workflows/lint.yml/badge.svg?event=push
+[linters-url]: https://github.com/redBorder/cookbook-rb-firewall/actions/workflows/lint.yml
+[license-shield]: https://img.shields.io/badge/license-AGPLv3-blue.svg
+[license-url]: https://github.com/cookbook-rb-firewall/blob/HEAD/LICENSE
+
+Cookbook to install and configure redborder firewall
 
 ### Platforms
 
@@ -29,4 +41,5 @@ cookbook to install and configure redborder firewall
 
 ## License and Authors
 
+GNU AFFERO GENERAL PUBLIC LICENSE Version 3, 19 November 2007
 Authors: Nils Verschaeve <nverschaeve@redborder.com>
