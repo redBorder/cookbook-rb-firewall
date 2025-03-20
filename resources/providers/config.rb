@@ -121,7 +121,7 @@ action :add do
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
     allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
-    
+
     (existing_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :delete }, 'public', 'tcp')
     end
