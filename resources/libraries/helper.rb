@@ -107,15 +107,16 @@ module Firewall
     end
 
     def interface_for_ip(ip_address)
-      return if ip_address.nil? || ip_address.empty?
+      return unless valid_ip?(ip_address)
       interfaces = Socket.getifaddrs
       interface = interfaces.find do |ifaddr|
         ifaddr.addr.ipv4? && ifaddr.addr.ip_address == ip_address
       end
-      interface.name
+      interface&.name
     end
 
     def ip_to_subnet(ip_address, prefix = 24)
+      return unless valid_ip?(ip_address)
       ip = IPAddr.new(ip_address)
       subnet = ip.mask(prefix)
       "#{subnet}/#{prefix}"
