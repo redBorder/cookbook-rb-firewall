@@ -4,18 +4,13 @@ module Firewall
     require 'socket'
     include ::Chef::Mixin::ShellOut
 
-    def valid_ipv4?(ip)
-      if ip.nil? || ip.empty?
-        Chef::Log.warn("IP address is empty or not defined.")
-        return false
+    def valid_ip?(ip)
+      begin
+        IPAddr.new(ip)
+        true
+      rescue IPAddr::InvalidAddressError
+        false
       end
-  
-      unless ip =~ /\A(?:[0-9]{1,3}\.){3}[0-9]{1,3}\z/ && ip.split('.').all? { |octet| octet.to_i.between?(0, 255) }
-        Chef::Log.warn("Invalid IP address: #{ip.inspect}")
-        return false
-      end
-  
-      true
     end
 
     def apply_rule(type, value, zone, protocol = nil)
@@ -53,16 +48,18 @@ module Firewall
         name = value[:name]
         port_val = value[:port]
         ip_val = value[:ip]
-        if valid_ipv4?(ip_val)
-          rich_rule = "rule family='ipv4' source address='#{ip_val}' port port='#{port_val}' protocol='#{protocol}' accept"
-          firewall_rule "#{act} #{name} port #{port_val}/#{protocol} for IP: #{ip_val} in #{zone} zone" do
-            rules rich_rule
-            zone zone
-            action act
-            permanent true
-          end
-        else
-          Chef::Log.warn("The #{name} rule was not applied because the IP address is invalid or empty.")
+
+        unless valid_ip?(ip_val)
+          Chef::Log.warn('Firewall rule will not be applied.')
+          return
+        end
+
+        rich_rule = "rule family='ipv4' source address='#{ip_val}' port port='#{port_val}' protocol='#{protocol}' accept"
+        firewall_rule "#{act} #{name} port #{port_val}/#{protocol} for IP: #{ip_val} in #{zone} zone" do
+          rules rich_rule
+          zone zone
+          action act
+          permanent true
         end
       end
     end
