@@ -4,6 +4,15 @@ module Firewall
     require 'socket'
     include ::Chef::Mixin::ShellOut
 
+    def valid_ip?(ip)
+      begin
+        IPAddr.new(ip)
+        true
+      rescue IPAddr::InvalidAddressError
+        false
+      end
+    end
+
     def apply_rule(type, value, zone, protocol = nil)
       case type
       when :port
@@ -39,6 +48,12 @@ module Firewall
         name = value[:name]
         port_val = value[:port]
         ip_val = value[:ip]
+
+        unless valid_ip?(ip_val)
+          Chef::Log.warn('Firewall rule will not be applied.')
+          return
+        end
+
         rich_rule = "rule family='ipv4' source address='#{ip_val}' port port='#{port_val}' protocol='#{protocol}' accept"
         firewall_rule "#{act} #{name} port #{port_val}/#{protocol} for IP: #{ip_val} in #{zone} zone" do
           rules rich_rule
@@ -92,15 +107,16 @@ module Firewall
     end
 
     def interface_for_ip(ip_address)
-      return if ip_address.nil? || ip_address.empty?
+      return unless valid_ip?(ip_address)
       interfaces = Socket.getifaddrs
       interface = interfaces.find do |ifaddr|
         ifaddr.addr.ipv4? && ifaddr.addr.ip_address == ip_address
       end
-      interface.name
+      interface&.name
     end
 
     def ip_to_subnet(ip_address, prefix = 24)
+      return unless valid_ip?(ip_address)
       ip = IPAddr.new(ip_address)
       subnet = ip.mask(prefix)
       "#{subnet}/#{prefix}"
