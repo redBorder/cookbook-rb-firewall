@@ -1,6 +1,14 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.2.2
+
+  - jnavarrorb
+    - [4e88a8a] Add license
+    - [2d9184d] Add more validations
+    - [5917a2e] Add valid_ip method
+    - [b1d1ab9] Add an IPv4 validation method
+
 ## 0.2.1
 
   - Daniel Castro
