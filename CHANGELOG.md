@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.3.0
+
+  - Daniel Castro
+    - [40c5e47] Open port for CEP on public zone
+
 ## 0.2.2
 
   - jnavarrorb
