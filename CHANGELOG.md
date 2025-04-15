@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.0
+
+  - Miguel Alvarez
+    - [3191f85] Add new druid ports
+
 ## 0.3.0
 
   - Daniel Castro
