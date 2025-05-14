@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.1
+
+  - ljblancoredborder
+    - [9335889] close port 8084
+
 ## 0.4.0
 
   - Miguel Alvarez
