@@ -143,10 +143,10 @@ module Firewall
     def get_ips_allowed_for_sflow(ip_addr)
       local_ips = Socket.ip_address_list.map(&:ip_address)
       begin
-        public_ip = shell_out("curl -s ifconfig.me").stdout.strip
+        public_ip = shell_out('curl -s ifconfig.me').stdout.strip
         local_ips << public_ip if public_ip =~ /^\d+\.\d+\.\d+\.\d+$/
       rescue
-        Chef::Log.warn("Unable to detect public IP via ifconfig.me")
+        Chef::Log.warn('Unable to detect public IP')
       end
       local_ips.uniq!
 
@@ -170,8 +170,9 @@ module Firewall
       flow_sensors = search(:node, 'roles:flow-sensor OR run_list:role\\[flow-sensor\\]')
       flow_sensors.each do |node|
         ip = node['ipaddress'] ||
-        node.dig('redborder', 'ipaddress') ||
-        node.dig('normal', 'redborder', 'ipaddress')
+             node.dig('redborder', 'ipaddress') ||
+             node.dig('normal', 'redborder', 'ipaddress')
+
 
         if ip && ip.match?(/^\d{1,3}(\.\d{1,3}){3}$/) && ip != ip_addr && !allowed_ips.include?(ip)
           Chef::Log.info("Node #{node.name} will be allowed via role flow-sensor (IP: #{ip})")
