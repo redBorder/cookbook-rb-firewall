@@ -138,5 +138,44 @@ module Firewall
       sensors = search(:node, '(role:ips-sensor OR role:intrusion-sensor)').sort
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
+
+    # Returns a list of IPs of nodes that are sending sFlow data to the local node.
+    def get_ips_allowed_for_sflow
+      local_ips = Socket.ip_address_list.map(&:ip_address)
+      begin
+        public_ip = shell_out("curl -s ifconfig.me").stdout.strip
+        local_ips << public_ip if public_ip =~ /^\d+\.\d+\.\d+\.\d+$/
+      rescue
+        Chef::Log.warn("Unable to detect public IP")
+      end
+      local_ips.uniq!
+
+      allowed_ips = []
+
+      nodes = search(:node, '*:*')
+      nodes.each do |node|
+        interfaces = node.dig('redborder', 'interfaces') || {}
+        interfaces.each do |_iface, data|
+          next unless data['protocol_type'].to_s.downcase == 'sflow'
+          dst = data['dstAddress']
+          next unless dst && dst.include?(':6343')
+
+          dst_ip, _port = dst.split(':')
+          if local_ips.include?(dst_ip)
+            allowed_ips << node['ipaddress']
+          end
+        end
+      end
+
+      flow_sensors = search(:node, 'roles:flow-sensor')
+      flow_sensors.each do |node|
+        ip = node['ipaddress']
+        if ip && ip != ip_addr && !allowed_ips.include?(ip)
+          allowed_ips << ip
+        end
+      end
+
+      allowed_ips.uniq.compact
+    end
   end
 end
