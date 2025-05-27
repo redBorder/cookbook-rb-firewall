@@ -173,7 +173,6 @@ module Firewall
              node.dig('redborder', 'ipaddress') ||
              node.dig('normal', 'redborder', 'ipaddress')
 
-
         if ip && ip.match?(/^\d{1,3}(\.\d{1,3}){3}$/) && ip != ip_addr && !allowed_ips.include?(ip)
           Chef::Log.info("Node #{node.name} will be allowed via role flow-sensor (IP: #{ip})")
           allowed_ips << ip
