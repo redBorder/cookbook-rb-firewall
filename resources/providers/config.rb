@@ -163,6 +163,21 @@ action :add do
     end
   end
 
+  # Allowing sFlow traffic only for the IP sending sFlow
+  if is_manager?
+    port = 6343
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    allowed_addresses = get_ips_allowed_for_sflow
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    end
+  end
+
   # Reload firewalld only if the runtime rules are different than the permanent rules
   # (a rule has been added/deleted and the service needs to be reloaded)
   execute 'reload_firewalld' do
