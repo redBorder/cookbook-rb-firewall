@@ -138,5 +138,57 @@ module Firewall
       sensors = search(:node, '(role:ips-sensor OR role:intrusion-sensor)').sort
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
+
+    # Returns a list of IPs of nodes that are sending sFlow data to the local node.
+    def get_ips_allowed_for_sflow(ip_addr)
+      local_ips = Socket.ip_address_list.map(&:ip_address)
+
+      begin
+        public_ip = shell_out('curl -s ifconfig.me').stdout.strip
+        local_ips << public_ip if public_ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+      rescue => e
+        Chef::Log.warn("Unable to retrieve public IP: #{e.message}")
+      end
+
+      begin
+        ip_virtual = data_bag_item('rBglobal', 'ipvirtual-external-webui')['ip']
+        local_ips << ip_virtual if ip_virtual =~ /^\d{1,3}(\.\d{1,3}){3}$/
+      rescue => e
+        Chef::Log.warn("Unable to retrieve virtual IP: #{e.message}")
+      end
+
+      local_ips.uniq!
+
+      allowed_ips = []
+
+      nodes = search(:node, '*:*')
+      nodes.each do |node|
+        interfaces = node.dig('redborder', 'interfaces') || {}
+        interfaces.each do |_iface, data|
+          next unless data['protocol_type'].to_s.downcase == 'sflow'
+
+          dst = data['dstAddress']
+          next unless dst && dst.include?(':6343')
+
+          dst_ip, _port = dst.split(':')
+          allowed_ips << node['ipaddress'] if local_ips.include?(dst_ip)
+        end
+      end
+
+      flow_sensors = search(:node, 'roles:flow-sensor OR run_list:role\\[flow-sensor\\]')
+      flow_sensors.each do |node|
+        ip = node['ipaddress'] ||
+             node.dig('redborder', 'ipaddress') ||
+             node.dig('normal', 'redborder', 'ipaddress')
+
+        if ip && ip.match?(/^\d{1,3}(\.\d{1,3}){3}$/) && ip != ip_addr && !allowed_ips.include?(ip)
+          allowed_ips << ip
+        else
+          Chef::Log.warn("Node #{node.name} skipped for sFlow (invalid or duplicate IP: #{ip.inspect})")
+        end
+      end
+
+      allowed_ips.uniq.compact
+    end
   end
 end
