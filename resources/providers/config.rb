@@ -151,14 +151,10 @@ action :add do
     if is_manager?
       (existing_addresses - target_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'home', 'tcp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'home', 'udp')
       end
 
       (allowed_addresses - existing_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'tcp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'udp')
       end
     end
   end
