@@ -131,11 +131,23 @@ action :add do
     end
   end
 
-  unless is_ips?
-    # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+  # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+  if is_proxy?
     port = 514
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    query = 'role:proxy-sensor OR role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
+    allowed_addresses = get_ips_allowed_for_syslog_in_proxy
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    end
+  elsif !is_ips?
+    port = 514
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    query = 'role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
     allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
