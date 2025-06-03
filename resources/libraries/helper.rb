@@ -138,5 +138,27 @@ module Firewall
       sensors = search(:node, '(role:ips-sensor OR role:intrusion-sensor)').sort
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
+
+    def get_ips_allowed_for_syslog_in_proxy
+      allowed_ips = []
+
+      begin
+        node_name = `hostname -s`.strip
+        # Use knife to get the node data in JSON format
+        result = shell_out!("knife node show #{node_name} -l -F json").stdout
+        json_output = result.lines.reject { |l| l.start_with?('INFO:') }.join
+        node_data = JSON.parse(json_output)
+
+        vault_sensors = node_data.dig('override', 'redborder', 'sensors_mapping', 'vault') || {}
+        vault_sensors.each do |_name, data|
+          ip = data['ipaddress']
+          allowed_ips << ip if ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+        end
+      rescue => e
+        Chef::Log.warn("Failed to retrieve vault sensors for proxy: #{e.message}")
+      end
+
+      allowed_ips.uniq.compact
+    end
   end
 end
