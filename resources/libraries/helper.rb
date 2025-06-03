@@ -2,6 +2,7 @@ module Firewall
   module Helpers
     require 'ipaddr'
     require 'socket'
+    require 'json'
     include ::Chef::Mixin::ShellOut
 
     def valid_ip?(ip)
@@ -154,6 +155,30 @@ module Firewall
         else
           Chef::Log.warn("Node #{node.name} skipped for sFlow (invalid or duplicate IP: #{ip.inspect})")
         end
+      end
+
+      allowed_ips.uniq.compact
+    end
+
+    # Returns a list of IPs of flow sensors that are allowed to send sFlow to the proxy.
+    def get_ips_allowed_for_sflow_in_proxy(ip_addr)
+      allowed_ips = []
+
+      begin
+        node_name = `hostname -s`.strip
+        
+        # Use knife to get the node data in JSON format
+        result = shell_out!("knife node show #{node_name} -l -F json --no-color").stdout
+        json_output = result.lines.reject { |l| l.start_with?('INFO:') }.join
+        node_data = JSON.parse(json_output)
+
+        flow_sensors = node_data.dig('override', 'redborder', 'sensors_mapping', 'flow') || {}
+        flow_sensors.each do |_name, data|
+          ip = data['ipaddress']
+          allowed_ips << ip if ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+        end
+      rescue => e
+        Chef::Log.warn("Failed to retrieve flow sensors for proxy: #{e.message}")
       end
 
       allowed_ips.uniq.compact
