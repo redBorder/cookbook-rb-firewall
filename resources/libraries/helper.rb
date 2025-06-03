@@ -166,7 +166,6 @@ module Firewall
 
       begin
         node_name = `hostname -s`.strip
-        
         # Use knife to get the node data in JSON format
         result = shell_out!("knife node show #{node_name} -l -F json --no-color").stdout
         json_output = result.lines.reject { |l| l.start_with?('INFO:') }.join
