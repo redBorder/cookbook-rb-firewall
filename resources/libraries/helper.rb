@@ -161,7 +161,7 @@ module Firewall
     end
 
     # Returns a list of IPs of flow sensors that are allowed to send sFlow to the proxy.
-    def get_ips_allowed_for_sflow_in_proxy(ip_addr)
+    def get_ips_allowed_for_sflow_in_proxy
       allowed_ips = []
 
       begin
