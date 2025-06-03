@@ -164,7 +164,7 @@ action :add do
   end
 
   # Allowing sFlow traffic only for the IP sending sFlow
-  if is_manager?
+  if is_manager? || is_proxy?
     port = 6343
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     allowed_addresses = get_ips_allowed_for_sflow(new_resource.ip_addr)
