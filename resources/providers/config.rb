@@ -164,10 +164,25 @@ action :add do
   end
 
   # Allowing sFlow traffic only for the IP sending sFlow
-  if is_manager? || is_proxy?
+  if is_manager?
     port = 6343
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     allowed_addresses = get_ips_allowed_for_sflow(new_resource.ip_addr)
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    end
+  end
+
+  # Allowing sFlow traffic only for the IP sending sFlow in the proxy
+  if is_proxy?
+    port = 6343
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    allowed_addresses = get_ips_allowed_for_sflow_in_proxy(new_resource.ip_addr)
 
     (existing_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
