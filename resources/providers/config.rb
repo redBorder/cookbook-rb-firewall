@@ -6,6 +6,8 @@ include Firewall::Helpers
 action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
+  flow_sensors = new_resource.flow_sensors || []
+  flow_sensor_in_proxy_nodes = new_resource.flow_sensor_in_proxy_nodes || []
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
 
   dnf_package 'firewalld' do
@@ -167,7 +169,7 @@ action :add do
   if is_manager?
     port = 6343
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    allowed_addresses = get_ips_allowed_for_sflow(new_resource.ip_addr)
+    allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, new_resource.ip_addr)
 
     (existing_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
@@ -182,7 +184,7 @@ action :add do
   if is_proxy?
     port = 6343
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    allowed_addresses = get_ips_allowed_for_sflow_in_proxy
+    allowed_addresses = get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
 
     (existing_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
