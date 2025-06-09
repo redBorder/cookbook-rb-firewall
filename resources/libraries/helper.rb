@@ -141,19 +141,22 @@ module Firewall
     end
 
     # Returns a list of IPs of sensors that are sending sFlow data to the local node.
-    def get_ips_allowed_for_sflow(ip_addr)
+    def get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
+      proxy_uuids = flow_sensor_in_proxy_nodes.map { |h| h.values.first['sensor_uuid'] }.compact
       allowed_ips = []
 
-      flow_sensors = search(:node, 'roles:flow-sensor OR run_list:role\\[flow-sensor\\]')
       flow_sensors.each do |node|
+        uuid = node.dig('redborder', 'sensor_uuid') || node.dig('normal', 'redborder', 'sensor_uuid')
         ip = node['ipaddress'] ||
-             node.dig('redborder', 'ipaddress') ||
-             node.dig('normal', 'redborder', 'ipaddress')
+            node.dig('redborder', 'ipaddress') ||
+            node.dig('normal', 'redborder', 'ipaddress')
 
-        if ip && ip.match?(/^\d{1,3}(\.\d{1,3}){3}$/) && ip != ip_addr && !allowed_ips.include?(ip)
+        next if proxy_uuids.include?(uuid)
+
+        if ip && ip.match?(/^\d{1,3}(\.\d{1,3}){3}$/) && ip != ip_addr
           allowed_ips << ip
         else
-          Chef::Log.warn("Node #{node.name} skipped for sFlow (invalid or duplicate IP: #{ip.inspect})")
+          Chef::Log.warn("Skipping node (#{node.name}) for sFlow - Invalid or duplicate IP: #{ip.inspect}")
         end
       end
 
@@ -161,26 +164,29 @@ module Firewall
     end
 
     # Returns a list of IPs of flow sensors that are allowed to send sFlow to the proxy.
-    def get_ips_allowed_for_sflow_in_proxy
+    def get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
       allowed_ips = []
+      proxy_id = node['redborder']['sensor_id']
+      (flow_sensor_in_proxy_nodes || []).each do |sensor_info|
+        next unless sensor_info.is_a?(Hash)
 
-      begin
-        node_name = `hostname -s`.strip
-        # Use knife to get the node data in JSON format
-        result = shell_out!("knife node show #{node_name} -l -F json --no-color").stdout
-        json_output = result.lines.reject { |l| l.start_with?('INFO:') }.join
-        node_data = JSON.parse(json_output)
+        sensor_info.each do |hostname, data|
+          next unless data.is_a?(Hash)
 
-        flow_sensors = node_data.dig('override', 'redborder', 'sensors_mapping', 'flow') || {}
-        flow_sensors.each do |_name, data|
+          parent_id = data['parent_id']
           ip = data['ipaddress']
-          allowed_ips << ip if ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+
+          # Just add the IP if it matches the parent_id and is a valid IPv4 address
+          if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+            allowed_ips << ip
+          else
+            Chef::Log.warn(">> [sFlow Proxy] Sensor omitido: IP=#{ip.inspect}, parent_id=#{parent_id}")
+          end
         end
-      rescue => e
-        Chef::Log.warn("Failed to retrieve flow sensors for proxy: #{e.message}")
       end
 
-      allowed_ips.uniq.compact
+      result = allowed_ips.uniq.compact
+      result
     end
   end
 end
