@@ -148,8 +148,8 @@ module Firewall
       flow_sensors.each do |node|
         uuid = node.dig('redborder', 'sensor_uuid') || node.dig('normal', 'redborder', 'sensor_uuid')
         ip = node['ipaddress'] ||
-            node.dig('redborder', 'ipaddress') ||
-            node.dig('normal', 'redborder', 'ipaddress')
+             node.dig('redborder', 'ipaddress') ||
+             node.dig('normal', 'redborder', 'ipaddress')
 
         next if proxy_uuids.include?(uuid)
 
@@ -170,7 +170,7 @@ module Firewall
       (flow_sensor_in_proxy_nodes || []).each do |sensor_info|
         next unless sensor_info.is_a?(Hash)
 
-        sensor_info.each do |hostname, data|
+        sensor_info.each do |_hostname, data|
           next unless data.is_a?(Hash)
 
           parent_id = data['parent_id']
@@ -185,8 +185,7 @@ module Firewall
         end
       end
 
-      result = allowed_ips.uniq.compact
-      result
+      allowed_ips.uniq.compact
     end
   end
 end
