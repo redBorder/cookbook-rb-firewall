@@ -139,23 +139,26 @@ module Firewall
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
 
-    def get_ips_allowed_for_syslog_in_proxy
+    def get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
       allowed_ips = []
+      proxy_id = node['redborder']['sensor_id']
 
-      begin
-        node_name = `hostname -s`.strip
-        # Use knife to get the node data in JSON format
-        result = shell_out!("knife node show #{node_name} -l -F json").stdout
-        json_output = result.lines.reject { |l| l.start_with?('INFO:') }.join
-        node_data = JSON.parse(json_output)
+     (vault_sensor_in_proxy_nodes || []).each do |sensor_info|
+        next unless sensor_info.is_a?(Hash)
 
-        vault_sensors = node_data.dig('override', 'redborder', 'sensors_mapping', 'vault') || {}
-        vault_sensors.each do |_name, data|
+        sensor_info.each do |_hostname, data|
+          next unless data.is_a?(Hash)
+
+          parent_id = data['parent_id']
           ip = data['ipaddress']
-          allowed_ips << ip if ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+
+          # Just add the IP if it matches the parent_id and is a valid IPv4 address
+          if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+            allowed_ips << ip
+          else
+            Chef::Log.warn(">> [Proxy] Sensor omitted: IP=#{ip.inspect}, parent_id=#{parent_id}")
+          end
         end
-      rescue => e
-        Chef::Log.warn("Failed to retrieve vault sensors for proxy: #{e.message}")
       end
 
       allowed_ips.uniq.compact

@@ -7,6 +7,8 @@ action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
+  vault_sensors = new_resource.vault_sensors || []
+  vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -135,7 +137,7 @@ action :add do
   if is_proxy?
     port = 514
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    allowed_addresses = get_ips_allowed_for_syslog_in_proxy
+    allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
 
     (existing_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
