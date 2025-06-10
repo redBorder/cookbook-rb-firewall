@@ -143,21 +143,18 @@ module Firewall
       allowed_ips = []
       proxy_id = node['redborder']['sensor_id']
 
-      (vault_sensor_in_proxy_nodes || []).each do |sensor_info|
+      (vault_sensor_in_proxy_nodes || []).each do |sensor_node|
+        sensor_info = sensor_node.to_hash
         next unless sensor_info.is_a?(Hash)
 
-        sensor_info.each do |_hostname, data|
-          next unless data.is_a?(Hash)
+        parent_id = sensor_info['redborder']['parent_id']
+        ip = sensor_info['ipaddress']
 
-          parent_id = data['parent_id']
-          ip = data['ipaddress']
-
-          # Just add the IP if it matches the parent_id and is a valid IPv4 address
-          if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
-            allowed_ips << ip
-          else
-            Chef::Log.warn(">> [Proxy] Sensor omitted: IP=#{ip.inspect}, parent_id=#{parent_id}")
-          end
+        # Just add the IP if it matches the parent_id and is a valid IPv4 address
+        if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+          allowed_ips << ip
+        else
+          Chef::Log.warn(">> [Proxy] Sensor omitted: IP=#{ip.inspect}, parent_id=#{parent_id}")
         end
       end
 
