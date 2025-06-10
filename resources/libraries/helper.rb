@@ -143,7 +143,7 @@ module Firewall
       allowed_ips = []
       proxy_id = node['redborder']['sensor_id']
 
-     (vault_sensor_in_proxy_nodes || []).each do |sensor_info|
+      (vault_sensor_in_proxy_nodes || []).each do |sensor_info|
         next unless sensor_info.is_a?(Hash)
 
         sensor_info.each do |_hostname, data|
