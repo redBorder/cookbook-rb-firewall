@@ -7,7 +7,6 @@ action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
-  vault_sensors = new_resource.vault_sensors || []
   vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
 
   dnf_package 'firewalld' do
