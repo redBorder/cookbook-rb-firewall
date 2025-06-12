@@ -152,7 +152,8 @@ action :add do
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     query = 'role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select{ |node| node['redborder']['parent_id'].nil? }.map { |node| node['ipaddress'] }
+    allowed_addresses = allowed_nodes.select { |node| node['redborder']['parent_id'].nil? }
+                                     .map { |node| node['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
 
     (existing_addresses - target_addresses).each do |ip|
