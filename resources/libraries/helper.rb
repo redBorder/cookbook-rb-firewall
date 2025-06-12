@@ -142,7 +142,7 @@ module Firewall
 
     # Returns a list of IPs of sensors that are sending sFlow data to the local node.
     def get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
-      proxy_uuids = flow_sensor_in_proxy_nodes.map { |h| h.values.first['sensor_uuid'] }.compact
+      proxy_uuids = flow_sensor_in_proxy_nodes.flat_map { |h| h.values.map { |v| v['sensor_uuid'] } }.compact
       allowed_ips = []
 
       flow_sensors.each do |node|
