@@ -140,10 +140,12 @@ action :add do
 
     (existing_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
     end
 
     (allowed_addresses - existing_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
     end
   elsif !is_ips?
     port = 514
