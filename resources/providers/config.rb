@@ -60,38 +60,105 @@ action :add do
     zones.each do |zone|
       zone_rules = node['firewall']['roles'][role][zone]
       next if zone_rules.nil?
-      zone_rules['tcp_ports']&.each { |port| apply_rule(:port, port, zone, 'tcp') }
-      zone_rules['udp_ports']&.each { |port| apply_rule(:port, port, zone, 'udp') }
-      zone_rules['protocols']&.each { |protocol| apply_rule(:protocol, protocol, zone) }
-      zone_rules['rich_rules']&.each { |rule| apply_rule(:rich_rule, rule, zone) }
+      existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
+      existing_protocols = get_existing_protocols_in_zone(zone)
+      existing_rules = get_existing_rules_in_zone(zone)
+      Array(zone_rules['tcp_ports']).each do |port|
+        unless existing_tcp_ports.include?(port.to_s)
+          apply_rule(:port, { port: port, action: :create }, zone, 'tcp')
+        end
+      end
+      Array(zone_rules['udp_ports']).each do |port|
+        unless existing_udp_ports.include?(port.to_s)
+          apply_rule(:port, { port: port, action: :create }, zone, 'udp')
+        end
+      end
+      Array(zone_rules['protocols']).each do |protocol|
+        unless existing_protocols.include?(protocol)
+          apply_rule(:protocol, { protocol: protocol, action: :create }, zone)
+        end
+      end
+      Array(zone_rules['rich_rules']).each do |rule|
+        unless existing_rules.include?(rule)
+          apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
+        end
+      end
+
+      # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
+      allowed_tcp = (zone_rules['tcp_ports'] || []).map(&:to_s)
+      Array(existing_tcp_ports).each do |port|
+        apply_rule(:port, { port: port.to_i, action: :delete }, zone, 'tcp') unless allowed_tcp.include?(port)
+      end
+      allowed_udp = (zone_rules['udp_ports'] || []).map(&:to_s)
+      Array(existing_udp_ports).each do |port|
+        apply_rule(:port, { port: port.to_i, action: :delete }, zone, 'udp') unless allowed_udp.include?(port)
+      end
+      allowed_protocols = zone_rules['protocols'] || []
+      Array(existing_protocols).each do |protocol|
+        apply_rule(:protocol, { protocol: protocol, action: :delete }, zone) unless allowed_protocols.include?(protocol)
+      end
     end
   end
 
-  # Managing port 9092 on the manager only for that specific IPS
   if is_manager? && sync_ip != ip_addr
-    existing_addresses = get_existing_ip_addresses_in_rules
-    aux = ip_address_ips_nodes.empty? ? existing_addresses : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
+    # Managing port 9092 on the manager only for that specific IPS
+    port = 9092 # kafka
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
 
-    unless ip_address_ips_nodes.empty?
-      ips_to_remove = existing_addresses - aux
-      ips_to_remove.each do |ip|
-        firewall_rule "Remove Kafka port 9092 for IP: #{ip}" do
-          rules "rule family='ipv4' source address=#{ip} port port=9092 protocol=tcp accept"
-          zone 'public'
-          action :delete
-          permanent true
-          only_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
-        end
-      end
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :delete }, 'public', 'tcp')
     end
 
-    aux.each do |ip|
-      firewall_rule "Open Kafka port 9092 for IP: #{ip}" do
-        rules "rule family='ipv4' source address=#{ip} port port=9092 protocol=tcp accept"
-        zone 'public'
-        action :create
-        permanent true
-        not_if "firewall-cmd --permanent --zone=public --query-rich-rule='rule family=\"ipv4\" source address=\"#{ip}\" port port=\"9092\" protocol=\"tcp\" accept'"
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    end
+
+    # Managing port 8478 on the manager only for other managers in the public zone
+    port = 8478 # redborder-cep
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    query = 'role:manager'
+    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
+    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
+    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    end
+  end
+
+  unless is_ips?
+    # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+    port = 514
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    query = 'role:proxy-sensor OR role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
+    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
+    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
+    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
+
+    (existing_addresses - target_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    end
+
+    if is_manager?
+      (existing_addresses - target_addresses).each do |ip|
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'home', 'tcp')
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'home', 'udp')
+      end
+
+      (allowed_addresses - existing_addresses).each do |ip|
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'tcp')
+        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'udp')
       end
     end
   end

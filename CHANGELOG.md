@@ -1,6 +1,44 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.1
+
+  - ljblancoredborder
+    - [9335889] close port 8084
+
+## 0.4.0
+
+  - Miguel Alvarez
+    - [3191f85] Add new druid ports
+
+## 0.3.0
+
+  - Daniel Castro
+    - [40c5e47] Open port for CEP on public zone
+
+## 0.2.2
+
+  - jnavarrorb
+    - [4e88a8a] Add license
+    - [2d9184d] Add more validations
+    - [5917a2e] Add valid_ip method
+    - [b1d1ab9] Add an IPv4 validation method
+
+## 0.2.1
+
+  - Daniel Castro
+    - [534b339] Only open 514/udp for manager
+
+## 0.2.0
+
+  - David Vanhoucke
+    - [9fa9cda] open port 9092 for intrusion-sensor
+
+## 0.1.3
+
+  - Miguel Alvarez
+    - [1d522d5] Add port 80 to firewall (public zone)
+
 ## 0.1.2
 
   - Pablo Pérez
