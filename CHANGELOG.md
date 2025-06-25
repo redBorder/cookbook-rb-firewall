@@ -1,6 +1,20 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.2
+
+  - Pablo Pérez
+    - [d1e0860] Only open 514 port in manager if the vault sensor is in the manager and not in proxy or similar
+    - [d486bfe] manage open 514 in proxies using udp
+    - [0bc7411] Refactor get_ips_allowed_for_syslog_in_proxy to get the info from node data
+    - [9b3cb07] Added properties
+    - [c374469] Fix to get the proxy info from the node
+    - [aba8e32] Add rules only for the vault sensors in the proxy
+    - [80300da] added get_ips_allowed_for_syslog_in_proxy method
+    - [fe8a161] Dont open syslog por in proxy - public
+    - [35e2253] Don't create rules in home zone bc is open
+    - [8c0530d] dont open the port 514 to public to all traffic. Should be only with sensors
+
 ## 0.4.1
 
   - ljblancoredborder
