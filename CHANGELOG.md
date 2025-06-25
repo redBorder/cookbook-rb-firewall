@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.3
+
+  - Juan Soto
+    - [45109cc] Apply firewall rule for sFlow port 6343 to IPs from dstAddress match or nodes with flow-sensor role
+    - [f382ba1] Add unified method to allow sFlow traffic based on dstAddress match or flow-sensor role
+
 ## 0.4.2
 
   - Pablo Pérez
