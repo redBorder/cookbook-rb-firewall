@@ -162,7 +162,7 @@ module Firewall
 
       allowed_ips.uniq.compact
     end
-    
+
     # Returns a list of IPs of flow sensors that are allowed to send sFlow to the proxy.
     def get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
       allowed_ips = []
@@ -187,7 +187,7 @@ module Firewall
 
       allowed_ips.uniq.compact
     end
-    
+
     def get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
       allowed_ips = []
       proxy_id = node['redborder']['sensor_id']
