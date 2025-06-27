@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.4
+
+  - nilsver
+    - [fca9ba5] remove flush cache
+
 ## 0.4.3
 
   - Juan Soto
