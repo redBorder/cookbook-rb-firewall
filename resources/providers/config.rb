@@ -13,7 +13,6 @@ action :add do
 
   dnf_package 'firewalld' do
     action :upgrade
-    flush_cache [:before]
   end
 
   service 'firewalld' do
