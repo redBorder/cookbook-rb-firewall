@@ -6,11 +6,13 @@ include Firewall::Helpers
 action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
+  flow_sensors = new_resource.flow_sensors || []
+  flow_sensor_in_proxy_nodes = new_resource.flow_sensor_in_proxy_nodes || []
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
+  vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
 
   dnf_package 'firewalld' do
     action :upgrade
-    flush_cache [:before]
   end
 
   service 'firewalld' do
@@ -131,13 +133,28 @@ action :add do
     end
   end
 
-  unless is_ips?
-    # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+  # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+  if is_proxy?
     port = 514
     existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    query = 'role:proxy-sensor OR role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
+    allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+    end
+  elsif !is_ips?
+    port = 514
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    query = 'role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
+    allowed_addresses = allowed_nodes.select { |node| node['redborder']['parent_id'].nil? }
+                                     .map { |node| node['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
 
     (existing_addresses - target_addresses).each do |ip|
@@ -151,15 +168,41 @@ action :add do
     if is_manager?
       (existing_addresses - target_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'home', 'tcp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'home', 'udp')
       end
 
       (allowed_addresses - existing_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'tcp')
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'home', 'udp')
       end
+    end
+  end
+
+  # Allowing sFlow traffic only for the IP sending sFlow
+  if is_manager?
+    port = 6343
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, new_resource.ip_addr)
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    end
+  end
+
+  # Allowing sFlow traffic only for the IP sending sFlow in the proxy
+  if is_proxy?
+    port = 6343
+    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    allowed_addresses = get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
+
+    (existing_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+
+    (allowed_addresses - existing_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
     end
   end
 

@@ -17,16 +17,16 @@ default['firewall']['roles'] = {
       'rich_rules' => ['rule family="ipv4" source address="224.0.0.18" accept'],
     },
     'public' => {
-      'tcp_ports' => [80, 443, 514, 2056, 2057, 2058, 7779],
-      'udp_ports' => [123, 161, 162, 514, 1812, 1813, 2055, 6343, 5353],
+      'tcp_ports' => [80, 443, 2056, 2057, 2058, 7779],
+      'udp_ports' => [123, 161, 162, 1812, 1813, 2055, 5353],
       'protocols' => ['112'],
       'rich_rules' => ['rule family="ipv4" source address="224.0.0.18" accept'],
     },
   },
   'proxy' => {
     'public' => {
-      'tcp_ports' => [514, 2056, 2057, 2058, 7779],
-      'udp_ports' => [161, 162, 1812, 1813, 2055, 6343],
+      'tcp_ports' => [2056, 2057, 2058, 7779],
+      'udp_ports' => [161, 162, 1812, 1813, 2055],
     },
   },
   'ips' => {
