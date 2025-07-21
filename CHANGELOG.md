@@ -3,12 +3,7 @@ cookbook-rb-firewall CHANGELOG
 
 ## 0.4.5
 
-  - Luis Blanco
-    - [3667fae] Merge pull request #6 from redBorder/feature/#18850_add_internal_virtual_ips
   - Rafael Gomez
-    - [03dc6f2] Merge branch 'master' into feature/#18850_add_internal_virtual_ips
-    - [94b40a2] Merge branch 'master' into feature/#18850_add_internal_virtual_ips
-    - [e40da55] Merge branch 'master' into feature/#18850_add_internal_virtual_ips
     - [60210b2] Add firewall rules for keepalived in home zone
 
 ## 0.4.4
