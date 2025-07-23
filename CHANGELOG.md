@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.4.5
+
+  - Rafael Gomez
+    - [60210b2] Add firewall rules for keepalived in home zone
+
 ## 0.4.4
 
   - nilsver
