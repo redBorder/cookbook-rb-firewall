@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.5.0
+
+  - nilsver
+    - [abc2d44] remove mongo port
+
 ## 0.4.5
 
   - Rafael Gomez
