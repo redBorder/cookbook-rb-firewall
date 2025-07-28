@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.6.0
+
+  - Rafael Gomez
+    - [f9451c0] Open TCP port for redis sentinel (26380) in zone home.
+    - [ff71e25] Open TCP port for redis in zone home
+
 ## 0.5.0
 
   - nilsver
