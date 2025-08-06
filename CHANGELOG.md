@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.6.1
+
+  - manegron
+    - [5a3d750] Merge pull request #34 from redBorder/feature/#20809_mcp
+    - [43806dd] Open redborder-agents port
+
 ## 0.6.0
 
   - Rafael Gomez
