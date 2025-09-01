@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.7.0
+
+  - Rafael Gomez
+    - [ccf8ce6] Open aerospike ports
+
 ## 0.6.1
 
   - manegron
