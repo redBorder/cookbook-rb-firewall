@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.8.0
+
+  - Rafael Gomez
+    - [bf541ad] Remove redborder-llm 50505 port service
+
 ## 0.7.0
 
   - Rafael Gomez
