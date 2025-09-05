@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.8.1
+
+  - Pablo Pérez
+    - [15e727c] Update default.rb
+
 ## 0.8.0
 
   - Rafael Gomez
