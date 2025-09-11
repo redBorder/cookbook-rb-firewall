@@ -6,12 +6,10 @@ module Firewall
     include ::Chef::Mixin::ShellOut
 
     def valid_ip?(ip)
-      begin
-        IPAddr.new(ip)
-        true
-      rescue IPAddr::InvalidAddressError
-        false
-      end
+      IPAddr.new(ip)
+      true
+    rescue IPAddr::InvalidAddressError
+      false
     end
 
     def apply_rule(type, value, zone, protocol = nil)
@@ -67,12 +65,15 @@ module Firewall
 
     def get_existing_ip_addresses_in_rules(port, protocol = nil)
       rules = shell_out!('firewall-cmd --permanent --zone=public --list-rich-rules').stdout.split("\n")
-      
-      rules.select do |rule|
-        rule.include?("port=\"#{port}\"") &&
-        (protocol.nil? || rule.include?("protocol=\"#{protocol}\""))
-      end.map do |rule|
-        rule.match(/source address="([^"]+)"/)[1] rescue nil
+
+      filtered = rules.select do |rule|
+        rule.include?("port port=\"#{port}\"") &&
+          (protocol.nil? || rule.include?("protocol=\"#{protocol}\""))
+      end
+
+      filtered.map do |rule|
+        match = rule.match(/source address="([^"]+)"/)
+        match ? match[1] : nil
       end.compact.uniq
     end
 
@@ -108,6 +109,7 @@ module Firewall
 
     def interface_for_ip(ip_address)
       return unless valid_ip?(ip_address)
+
       interfaces = Socket.getifaddrs
       interface = interfaces.find do |ifaddr|
         ifaddr.addr.ipv4? && ifaddr.addr.ip_address == ip_address
@@ -117,6 +119,7 @@ module Firewall
 
     def ip_to_subnet(ip_address, prefix = 24)
       return unless valid_ip?(ip_address)
+
       ip = IPAddr.new(ip_address)
       subnet = ip.mask(prefix)
       "#{subnet}/#{prefix}"

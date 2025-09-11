@@ -59,21 +59,19 @@ action :add do
   }
   roles.each do |role, zones|
     next unless send("is_#{role}?")
+
     zones.each do |zone|
       zone_rules = node['firewall']['roles'][role][zone]
       next if zone_rules.nil?
+
       existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
       existing_protocols = get_existing_protocols_in_zone(zone)
       existing_rules = get_existing_rules_in_zone(zone)
       Array(zone_rules['tcp_ports']).each do |port|
-        unless existing_tcp_ports.include?(port.to_s)
-          apply_rule(:port, { port: port, action: :create }, zone, 'tcp')
-        end
+        apply_rule(:port, { port: port, action: :create }, zone, 'tcp') unless existing_tcp_ports.include?(port.to_s)
       end
       Array(zone_rules['udp_ports']).each do |port|
-        unless existing_udp_ports.include?(port.to_s)
-          apply_rule(:port, { port: port, action: :create }, zone, 'udp')
-        end
+        apply_rule(:port, { port: port, action: :create }, zone, 'udp') unless existing_udp_ports.include?(port.to_s)
       end
       Array(zone_rules['protocols']).each do |protocol|
         unless existing_protocols.include?(protocol)
@@ -81,9 +79,7 @@ action :add do
         end
       end
       Array(zone_rules['rich_rules']).each do |rule|
-        unless existing_rules.include?(rule)
-          apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
-        end
+        apply_rule(:rich_rule, { rule: rule, action: :create }, zone) unless existing_rules.include?(rule)
       end
 
       # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
@@ -157,8 +153,8 @@ action :add do
     port = 514
     query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |node| node['redborder']['parent_id'].nil? }
-                                    .map { |node| node['ipaddress'] }
+    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }
+                                     .map { |n| n['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
 
     existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
