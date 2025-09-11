@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.8.2
+
+  - Rafael Gomez
+    - [b733d92] Remove mongodb port
+
 ## 0.8.1
 
   - Pablo Pérez
