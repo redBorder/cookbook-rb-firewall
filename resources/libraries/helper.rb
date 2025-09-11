@@ -65,16 +65,15 @@ module Firewall
       end
     end
 
-    def get_existing_ip_addresses_in_rules(port)
-      rich_rules = shell_out!('firewall-cmd --zone=public --list-rich-rules').stdout
-      existing_ips = []
-      rich_rules.split("\n").each do |rule|
-        if rule.include?("port=\"#{port}\"")
-          ip_match = rule.match(/source address="([^"]+)"/)
-          existing_ips << ip_match[1] if ip_match
-        end
-      end
-      existing_ips
+    def get_existing_ip_addresses_in_rules(port, protocol = nil)
+      rules = shell_out!('firewall-cmd --permanent --zone=public --list-rich-rules').stdout.split("\n")
+      
+      rules.select do |rule|
+        rule.include?("port=\"#{port}\"") &&
+        (protocol.nil? || rule.include?("protocol=\"#{protocol}\""))
+      end.map do |rule|
+        rule.match(/source address="([^"]+)"/)[1] rescue nil
+      end.compact.uniq
     end
 
     def get_existing_ports_in_zone(zone)
