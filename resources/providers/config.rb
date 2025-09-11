@@ -136,41 +136,45 @@ action :add do
   # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
   if is_proxy?
     port = 514
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
     allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
 
-    (existing_addresses - allowed_addresses).each do |ip|
+    (existing_tcp_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+    (allowed_addresses - existing_tcp_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
     end
 
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
+    (existing_udp_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+    (allowed_addresses - existing_udp_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
     end
   elsif !is_ips?
     port = 514
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    query = 'role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
+    query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
     allowed_addresses = allowed_nodes.select { |node| node['redborder']['parent_id'].nil? }
-                                     .map { |node| node['ipaddress'] }
+                                    .map { |node| node['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
 
-    (existing_addresses - target_addresses).each do |ip|
+    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
+    (existing_tcp_addresses - target_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
     end
-
-    (allowed_addresses - existing_addresses).each do |ip|
+    (allowed_addresses - existing_tcp_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
     end
 
     if is_manager?
-      (existing_addresses - target_addresses).each do |ip|
+      existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
+      (existing_udp_addresses - target_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
       end
-
-      (allowed_addresses - existing_addresses).each do |ip|
+      (allowed_addresses - existing_udp_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
       end
     end
