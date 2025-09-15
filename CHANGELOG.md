@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.9.1
+
+  - Juan Soto
+    - [b0e7bad] Enhance firewall rule management for vault sensors by adding UDP support and improving address filtering logic
+
 ## 0.9.0
 
   - nilsver
