@@ -1,6 +1,16 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.9.0
+
+  - nilsver
+    - [e55b61b] manage iptables rules in action
+
+## 0.8.2
+
+  - Rafael Gomez
+    - [b733d92] Remove mongodb port
+
 ## 0.8.1
 
   - Pablo Pérez
