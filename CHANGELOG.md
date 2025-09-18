@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.9.2
+
+  - nilsver
+    - [7bcea41] Merge pull request #50 from redBorder/Bugfix/#20693_3_light_alternative
+    - [d150cb5] fix from other task iptables
+
 ## 0.9.1
 
   - Juan Soto
