@@ -14,6 +14,6 @@ property :vault_sensors, Array, required: false
 property :vault_sensor_in_proxy_nodes, Array, required: false
 property :sync_ip, String, required: false
 property :ip_addr, String, required: false
-property :current_webui_vip, kind_of: String, default: nil
-property :previous_webui_vip, kind_of: String, default: nil
+property :current_nginx_vip, kind_of: String, default: nil
+property :previous_nginx_vip, kind_of: String, default: nil
 property :manager_services, kind_of: Hash, default: {}

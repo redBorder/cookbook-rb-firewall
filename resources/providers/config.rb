@@ -231,14 +231,14 @@ end
 
 action :cleanup_virtual_ip_rules do
   if is_manager?
-    previous_webui_vip = new_resource.previous_webui_vip
-    current_webui_vip = new_resource.current_webui_vip
+    previous_nginx_vip = new_resource.previous_nginx_vip
+    current_nginx_vip = new_resource.current_nginx_vip
     manager_services = new_resource.manager_services || {}
 
-    if previous_webui_vip && (previous_webui_vip != current_webui_vip || !manager_services['webui'])
+    if previous_nginx_vip && (previous_nginx_vip != current_nginx_vip || !manager_services['webui'])
       execute 'remove_old_webui_iptables_rule' do
-        command "iptables -t nat -D PREROUTING -d #{previous_webui_vip} -j REDIRECT"
-        only_if "iptables -t nat -C PREROUTING -d #{previous_webui_vip} -j REDIRECT"
+        command "iptables -t nat -D PREROUTING -d #{previous_nginx_vip} -j REDIRECT"
+        only_if "iptables -t nat -C PREROUTING -d #{previous_nginx_vip} -j REDIRECT"
         ignore_failure true
       end
     end
