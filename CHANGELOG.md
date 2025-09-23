@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.10.0
+
+  - manegron
+    - [25c32b0] Open 7777 (rb-reputation)
+
 ## 0.9.2
 
   - nilsver
