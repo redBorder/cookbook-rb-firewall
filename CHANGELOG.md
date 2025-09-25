@@ -1,6 +1,27 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.10.0
+
+  - manegron
+    - [25c32b0] Open 7777 (rb-reputation)
+
+## 0.9.2
+
+  - nilsver
+    - [7bcea41] Merge pull request #50 from redBorder/Bugfix/#20693_3_light_alternative
+    - [d150cb5] fix from other task iptables
+
+## 0.9.1
+
+  - Juan Soto
+    - [b0e7bad] Enhance firewall rule management for vault sensors by adding UDP support and improving address filtering logic
+
+## 0.9.0
+
+  - nilsver
+    - [e55b61b] manage iptables rules in action
+
 ## 0.8.2
 
   - Rafael Gomez

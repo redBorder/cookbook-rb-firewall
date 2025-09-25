@@ -59,21 +59,19 @@ action :add do
   }
   roles.each do |role, zones|
     next unless send("is_#{role}?")
+
     zones.each do |zone|
       zone_rules = node['firewall']['roles'][role][zone]
       next if zone_rules.nil?
+
       existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
       existing_protocols = get_existing_protocols_in_zone(zone)
       existing_rules = get_existing_rules_in_zone(zone)
       Array(zone_rules['tcp_ports']).each do |port|
-        unless existing_tcp_ports.include?(port.to_s)
-          apply_rule(:port, { port: port, action: :create }, zone, 'tcp')
-        end
+        apply_rule(:port, { port: port, action: :create }, zone, 'tcp') unless existing_tcp_ports.include?(port.to_s)
       end
       Array(zone_rules['udp_ports']).each do |port|
-        unless existing_udp_ports.include?(port.to_s)
-          apply_rule(:port, { port: port, action: :create }, zone, 'udp')
-        end
+        apply_rule(:port, { port: port, action: :create }, zone, 'udp') unless existing_udp_ports.include?(port.to_s)
       end
       Array(zone_rules['protocols']).each do |protocol|
         unless existing_protocols.include?(protocol)
@@ -81,9 +79,7 @@ action :add do
         end
       end
       Array(zone_rules['rich_rules']).each do |rule|
-        unless existing_rules.include?(rule)
-          apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
-        end
+        apply_rule(:rich_rule, { rule: rule, action: :create }, zone) unless existing_rules.include?(rule)
       end
 
       # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
@@ -136,41 +132,45 @@ action :add do
   # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
   if is_proxy?
     port = 514
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
     allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
 
-    (existing_addresses - allowed_addresses).each do |ip|
+    (existing_tcp_addresses - allowed_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+    (allowed_addresses - existing_tcp_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
     end
 
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
+    (existing_udp_addresses - allowed_addresses).each do |ip|
+      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
+    end
+    (allowed_addresses - existing_udp_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
     end
   elsif !is_ips?
     port = 514
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    query = 'role:manager OR role:vault-sensor' # IPS' use ports 162 and 163 to send syslog messages via snmp traps
+    query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |node| node['redborder']['parent_id'].nil? }
-                                     .map { |node| node['ipaddress'] }
+    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }
+                                     .map { |n| n['ipaddress'] }
     target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
 
-    (existing_addresses - target_addresses).each do |ip|
+    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
+    (existing_tcp_addresses - target_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
     end
-
-    (allowed_addresses - existing_addresses).each do |ip|
+    (allowed_addresses - existing_tcp_addresses).each do |ip|
       apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
     end
 
     if is_manager?
-      (existing_addresses - target_addresses).each do |ip|
+      existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
+      (existing_udp_addresses - target_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
       end
-
-      (allowed_addresses - existing_addresses).each do |ip|
+      (allowed_addresses - existing_udp_addresses).each do |ip|
         apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
       end
     end
@@ -227,4 +227,20 @@ action :remove do
   end
 
   Chef::Log.info('Firewall configuration has been removed.')
+end
+
+action :cleanup_virtual_ip_rules do
+  if is_manager?
+    previous_nginx_vip = new_resource.previous_nginx_vip
+    current_nginx_vip = new_resource.current_nginx_vip
+    manager_services = new_resource.manager_services || {}
+
+    if previous_nginx_vip && (previous_nginx_vip != current_nginx_vip || !manager_services['webui'])
+      execute 'remove_old_webui_iptables_rule' do
+        command "iptables -t nat -D PREROUTING -d #{previous_nginx_vip} -j REDIRECT"
+        only_if "iptables -t nat -C PREROUTING -d #{previous_nginx_vip} -j REDIRECT"
+        ignore_failure true
+      end
+    end
+  end
 end
