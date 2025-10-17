@@ -1,6 +1,14 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.11.0
+
+  - Rafael Gomez
+    - [21f1257] Open web airflow in zone public
+  - vimesa
+    - [50cd642] Modify airflow port
+    - [7fe6568] Add airflow port
+
 ## 0.10.2
 
   - nilsver
