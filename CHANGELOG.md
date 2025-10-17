@@ -1,6 +1,16 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.10.2
+
+  - nilsver
+    - [9d4c562] fix typo
+
+## 0.10.1
+
+  - manegron
+    - [b05fcfe] Adjust condition for iptables redirect
+
 ## 0.10.0
 
   - manegron
