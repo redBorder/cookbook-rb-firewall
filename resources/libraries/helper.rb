@@ -277,25 +277,9 @@ module Firewall
 
       all_managed_rich_rules.each do |zone, final_rules|
         final_rich_rules_list = final_rules.uniq
-        puts ">> [Firewall] Final rich rules for zone #{zone}:"
-        final_rich_rules_list.each do |rule|
-          puts "   #{rule}"
-        end
         existing_perm_rules = get_existing_rules_in_zone(zone)
-        puts ">> [Firewall] Existing rich rules in zone #{zone}:"
-        existing_perm_rules.each do |rule|
-          puts "   #{rule}"
-        end
         rules_to_add = final_rich_rules_list - existing_perm_rules
-        puts ">> [Firewall] Rich rules to add in zone #{zone}:"
-        rules_to_add.each do |rule|
-          puts "   #{rule}"
-        end
         rules_to_remove = existing_perm_rules - final_rich_rules_list
-        puts ">> [Firewall] Rich rules to remove in zone #{zone}:"
-        rules_to_remove.each do |rule|
-          puts "   #{rule}"
-        end
 
         rules_to_add.each do |rule|
           apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
