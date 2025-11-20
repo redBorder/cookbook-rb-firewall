@@ -230,7 +230,7 @@ module Firewall
 
       if is_manager? && sync_ip != ip_addr
         port = 9092 # Kafka
-        allowed_addresses = get_ip_of_manager_ips_nodes.empty? ? [] : get_ip_of_manager_ips_nodes.map { |ips| ips[:ipaddress] }
+        allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
         allowed_addresses.each do |ip|
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
         end
