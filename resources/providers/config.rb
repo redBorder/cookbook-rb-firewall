@@ -92,6 +92,16 @@ action :add do
     end
   end
 
+  execute 'reload_firewalld' do
+    command 'firewall-cmd --reload'
+    only_if do
+      runtime_rules = `firewall-cmd --zone=public --list-rich-rules`.strip
+      permanent_rules = `firewall-cmd --permanent --zone=public --list-rich-rules`.strip
+      runtime_rules != permanent_rules
+    end
+    action :run
+  end
+
   Chef::Log.info('Firewall configuration has been applied.')
 end
 
