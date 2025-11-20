@@ -197,6 +197,12 @@ module Firewall
     # Function to manage all rich rules from all sources in a unified way,
     # it helps with the problem of having multiple sources of rich rules.
     def converge_rich_rules
+      sync_ip = new_resource.sync_ip
+      ip_addr = new_resource.ip_addr
+      flow_sensors = new_resource.flow_sensors || []
+      flow_sensor_in_proxy_nodes = new_resource.flow_sensor_in_proxy_nodes || []
+      ip_address_ips_nodes = get_ip_of_manager_ips_nodes
+      vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
       all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
 
       roles = {
@@ -222,7 +228,7 @@ module Firewall
         all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{network['network']}\" reject"
       end
 
-      if is_manager? && new_resource.sync_ip != new_resource.ip_addr
+      if is_manager? && sync_ip != ip_addr
         port = 9092 # Kafka
         allowed_addresses = get_ip_of_manager_ips_nodes.empty? ? [] : get_ip_of_manager_ips_nodes.map { |ips| ips[:ipaddress] }
         allowed_addresses.each do |ip|
@@ -231,7 +237,7 @@ module Firewall
 
         port = 8478 # CEP
         query = 'role:manager'
-        allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == new_resource.ip_addr }.sort_by(&:name)
+        allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
         allowed_addresses = allowed_nodes.map { |n| n['ipaddress'] }
         allowed_addresses.each do |ip|
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
@@ -241,7 +247,7 @@ module Firewall
       # Vault
       if is_proxy?
         port = 514
-        allowed_addresses = get_ips_allowed_for_syslog_in_proxy(new_resource.vault_sensor_in_proxy_nodes)
+        allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
         allowed_addresses.each do |ip|
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
@@ -249,7 +255,7 @@ module Firewall
       elsif !is_ips?
         port = 514
         query = 'role:manager OR role:vault-sensor'
-        allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == new_resource.ip_addr }.sort_by(&:name)
+        allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
         allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }.map { |n| n['ipaddress'] }
         allowed_addresses.each do |ip|
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
@@ -262,14 +268,14 @@ module Firewall
       # sFlow
       if is_manager?
         port = 6343
-        allowed_addresses = get_ips_allowed_for_sflow(new_resource.flow_sensors, new_resource.flow_sensor_in_proxy_nodes, new_resource.ip_addr)
+        allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
         allowed_addresses.each do |ip|
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
         end
       end
       if is_proxy?
         port = 6343
-        allowed_addresses = get_ips_allowed_for_sflow_in_proxy(new_resource.flow_sensor_in_proxy_nodes)
+        allowed_addresses = get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
         allowed_addresses.each do |ip|
           all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
         end
