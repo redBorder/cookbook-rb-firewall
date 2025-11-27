@@ -42,6 +42,15 @@ module Firewall
           permanent true
           notifies :reload, 'service[firewalld]', :delayed
         end
+      when :network
+        act = value[:action]
+        firewall_rule "#{act} source #{value[:network]} in #{zone} zone" do
+          sources value[:network]
+          zone zone
+          action act
+          permanent true
+          notifies :reload, 'service[firewalld]', :delayed
+        end
       end
     end
 
@@ -194,106 +203,13 @@ module Firewall
       allowed_ips.uniq.compact
     end
 
-    # Function to manage all rich rules from all sources in a unified way,
-    # it helps with the problem of having multiple sources of rich rules.
-    def converge_rich_rules
-      sync_ip = new_resource.sync_ip
-      ip_addr = new_resource.ip_addr
-      flow_sensors = new_resource.flow_sensors || []
-      flow_sensor_in_proxy_nodes = new_resource.flow_sensor_in_proxy_nodes || []
-      ip_address_ips_nodes = get_ip_of_manager_ips_nodes
-      vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
-      all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
-
-      roles = {
-        'manager' => %w(home public),
-        'proxy' => %w(public),
-        'ips' => %w(public),
-      }
-      roles.each do |role, zones|
-        next unless send("is_#{role}?")
-        zones.each do |zone|
-          zone_rules = node['firewall']['roles'][role][zone].to_hash
-          next if zone_rules.nil?
-          all_managed_rich_rules[zone].concat(zone_rules['rich_rules'] || [])
-        end
+    def get_existing_sources(zone)
+      networks = shell_out!("firewall-cmd --permanent --zone=#{zone} --list-sources").stdout
+      existing_networks = []
+      networks.split(' ').each do |network|
+        existing_networks << network
       end
-
-      whitelist_networks = node['redborder']['white_networks'] || []
-      blacklist_networks = node['redborder']['black_networks'] || []
-      whitelist_networks.each do |network|
-        all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{network['network']}\" accept"
-      end
-      blacklist_networks.each do |network|
-        all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{network['network']}\" reject"
-      end
-
-      if is_manager? && sync_ip != ip_addr
-        port = 9092 # Kafka
-        allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
-        allowed_addresses.each do |ip|
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
-        end
-
-        port = 8478 # CEP
-        query = 'role:manager'
-        allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-        allowed_addresses = allowed_nodes.map { |n| n['ipaddress'] }
-        allowed_addresses.each do |ip|
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
-        end
-      end
-
-      # Vault
-      if is_proxy?
-        port = 514
-        allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
-        allowed_addresses.each do |ip|
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
-        end
-      elsif !is_ips?
-        port = 514
-        query = 'role:manager OR role:vault-sensor'
-        allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-        allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }.map { |n| n['ipaddress'] }
-        allowed_addresses.each do |ip|
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
-          if is_manager?
-            all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
-          end
-        end
-      end
-
-      # sFlow
-      if is_manager?
-        port = 6343
-        allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
-        allowed_addresses.each do |ip|
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
-        end
-      end
-      if is_proxy?
-        port = 6343
-        allowed_addresses = get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
-        allowed_addresses.each do |ip|
-          all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
-        end
-      end
-
-      all_managed_rich_rules.each do |zone, final_rules|
-        final_rich_rules_list = final_rules.uniq
-        existing_perm_rules = get_existing_rules_in_zone(zone)
-        rules_to_add = final_rich_rules_list - existing_perm_rules
-        rules_to_remove = existing_perm_rules - final_rich_rules_list
-
-        rules_to_add.each do |rule|
-          apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
-        end
-        rules_to_remove.each do |rule|
-          apply_rule(:rich_rule, { rule: rule, action: :delete }, zone)
-        end
-      end
+      existing_networks
     end
   end
 end
