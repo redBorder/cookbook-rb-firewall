@@ -1,6 +1,18 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.11.1
+
+  - Luis Blanco
+    - [3cf7cf2] Merge pull request #61 from redBorder/bugfix/#23431_add_rich_rules_for_black_white_networks
+  - nilsver
+    - [a35e322] add black/white networks in appropriate zone
+    - [ecce369] add reload
+    - [283ac8c] fix lint2
+    - [abdfbf9] fix lint
+    - [2fae95a] remove logs
+    - [9d6cb6f] add black white networks to rich rules
+
 ## 0.11.0
 
   - Rafael Gomez
