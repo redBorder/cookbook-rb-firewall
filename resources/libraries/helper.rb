@@ -42,23 +42,14 @@ module Firewall
           permanent true
           notifies :reload, 'service[firewalld]', :delayed
         end
-      when :filter_by_ip
+      when :network
         act = value[:action]
-        name = value[:name]
-        port_val = value[:port]
-        ip_val = value[:ip]
-
-        unless valid_ip?(ip_val)
-          Chef::Log.warn('Firewall rule will not be applied.')
-          return
-        end
-
-        rich_rule = "rule family='ipv4' source address='#{ip_val}' port port='#{port_val}' protocol='#{protocol}' accept"
-        firewall_rule "#{act} #{name} port #{port_val}/#{protocol} for IP: #{ip_val} in #{zone} zone" do
-          rules rich_rule
+        firewall_rule "#{act} source #{value[:network]} in #{zone} zone" do
+          sources value[:network]
           zone zone
           action act
           permanent true
+          notifies :reload, 'service[firewalld]', :delayed
         end
       end
     end
@@ -99,7 +90,7 @@ module Firewall
     end
 
     def get_existing_rules_in_zone(zone)
-      rich_rules = shell_out!("firewall-cmd --zone=#{zone} --list-rich-rules").stdout
+      rich_rules = shell_out!("firewall-cmd --permanent --zone=#{zone} --list-rich-rules").stdout
       existing_rules = []
       rich_rules.split("\n").each do |rule|
         existing_rules << rule
@@ -210,6 +201,15 @@ module Firewall
       end
 
       allowed_ips.uniq.compact
+    end
+
+    def get_existing_sources(zone)
+      networks = shell_out!("firewall-cmd --permanent --zone=#{zone} --list-sources").stdout
+      existing_networks = []
+      networks.split(' ').each do |network|
+        existing_networks << network
+      end
+      existing_networks
     end
   end
 end
