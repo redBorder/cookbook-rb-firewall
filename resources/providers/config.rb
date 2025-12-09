@@ -161,8 +161,8 @@ action :add do
   end
 
   if is_manager?
-    white_networks = Array(node.dig('redborder','white_networks')).map { |h| h['network'].to_s }
-    black_networks = Array(node.dig('redborder','black_networks')).map { |h| h['network'].to_s }
+    white_networks = Array(node.dig('redborder', 'white_networks')).map { |h| h['network'].to_s }
+    black_networks = Array(node.dig('redborder', 'black_networks')).map { |h| h['network'].to_s }
     existing_white_networks = get_existing_sources('trusted')
     existing_black_networks = get_existing_sources('block')
 
