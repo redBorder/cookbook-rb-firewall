@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.11.2
+
+  - nilsver
+    - [ccb2058] handle map call on nil object
+
 ## 0.11.1
 
   - nilsver
