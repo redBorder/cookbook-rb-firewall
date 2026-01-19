@@ -10,6 +10,7 @@ action :add do
   flow_sensor_in_proxy_nodes = new_resource.flow_sensor_in_proxy_nodes || []
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
   vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
+  all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -51,7 +52,6 @@ action :add do
     end
   end
 
-  # Applying firewall ports, protocols, and rich rules based on zones
   roles = {
     'manager' => %w(home public),
     'proxy' => %w(public),
@@ -59,14 +59,14 @@ action :add do
   }
   roles.each do |role, zones|
     next unless send("is_#{role}?")
-
     zones.each do |zone|
-      zone_rules = node['firewall']['roles'][role][zone]
+      zone_rules = node['firewall']['roles'][role][zone].to_hash
       next if zone_rules.nil?
+      all_managed_rich_rules[zone].concat(zone_rules['rich_rules'] || [])
 
       existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
       existing_protocols = get_existing_protocols_in_zone(zone)
-      existing_rules = get_existing_rules_in_zone(zone)
+
       Array(zone_rules['tcp_ports']).each do |port|
         apply_rule(:port, { port: port, action: :create }, zone, 'tcp') unless existing_tcp_ports.include?(port.to_s)
       end
@@ -77,9 +77,6 @@ action :add do
         unless existing_protocols.include?(protocol)
           apply_rule(:protocol, { protocol: protocol, action: :create }, zone)
         end
-      end
-      Array(zone_rules['rich_rules']).each do |rule|
-        apply_rule(:rich_rule, { rule: rule, action: :create }, zone) unless existing_rules.include?(rule)
       end
 
       # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
@@ -99,115 +96,90 @@ action :add do
   end
 
   if is_manager? && sync_ip != ip_addr
-    # Managing port 9092 on the manager only for that specific IPS
-    port = 9092 # kafka
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    port = 9092 # Kafka
     allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :delete }, 'public', 'tcp')
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
     end
 
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :create }, 'public', 'tcp')
-    end
-
-    # Managing port 8478 on the manager only for other managers in the public zone
-    port = 8478 # redborder-cep
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    port = 8478 # CEP
     query = 'role:manager'
-    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
-    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
+    allowed_addresses = allowed_nodes.map { |n| n['ipaddress'] }
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
     end
   end
 
-  # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+  # Vault
   if is_proxy?
     port = 514
-    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
     allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
-
-    (existing_tcp_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-    (allowed_addresses - existing_tcp_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
-    end
-
-    existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
-    (existing_udp_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
-    end
-    (allowed_addresses - existing_udp_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
     end
   elsif !is_ips?
     port = 514
     query = 'role:manager OR role:vault-sensor'
-    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }
-                                     .map { |n| n['ipaddress'] }
-    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
-
-    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
-    (existing_tcp_addresses - target_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-    (allowed_addresses - existing_tcp_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
-    end
-
-    if is_manager?
-      existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
-      (existing_udp_addresses - target_addresses).each do |ip|
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
-      end
-      (allowed_addresses - existing_udp_addresses).each do |ip|
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
+    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }.map { |n| n['ipaddress'] }
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
+      if is_manager?
+        all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
       end
     end
   end
 
-  # Allowing sFlow traffic only for the IP sending sFlow
+  # sFlow
   if is_manager?
     port = 6343
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, new_resource.ip_addr)
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
     end
   end
-
-  # Allowing sFlow traffic only for the IP sending sFlow in the proxy
   if is_proxy?
     port = 6343
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     allowed_addresses = get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
     end
   end
 
-  # Reload firewalld only if the runtime rules are different than the permanent rules
-  # (a rule has been added/deleted and the service needs to be reloaded)
+  all_managed_rich_rules.each do |zone, final_rules|
+    final_rich_rules_list = final_rules.uniq
+    existing_perm_rules = get_existing_rules_in_zone(zone)
+
+    (final_rich_rules_list - existing_perm_rules).each do |rule|
+      apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
+    end
+    (existing_perm_rules - final_rich_rules_list).each do |rule|
+      apply_rule(:rich_rule, { rule: rule, action: :delete }, zone)
+    end
+  end
+
+  if is_manager?
+    white_networks = Array(node.dig('redborder', 'white_networks')).map { |h| h['network'].to_s }
+    black_networks = Array(node.dig('redborder', 'black_networks')).map { |h| h['network'].to_s }
+    existing_white_networks = get_existing_sources('trusted')
+    existing_black_networks = get_existing_sources('block')
+
+    (white_networks - existing_white_networks).each do |network|
+      apply_rule(:network, { network: network, action: :create }, 'trusted')
+    end
+    (existing_white_networks - white_networks).each do |network|
+      apply_rule(:network, { network: network, action: :delete }, 'trusted')
+    end
+    (black_networks - existing_black_networks).each do |network|
+      apply_rule(:network, { network: network, action: :create }, 'block')
+    end
+    (existing_black_networks - black_networks).each do |network|
+      apply_rule(:network, { network: network, action: :delete }, 'block')
+    end
+  end
+
   execute 'reload_firewalld' do
     command 'firewall-cmd --reload'
     only_if do

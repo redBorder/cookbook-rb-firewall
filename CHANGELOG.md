@@ -1,6 +1,18 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.11.2
+
+  - nilsver
+    - [ccb2058] handle map call on nil object
+
+## 0.11.1
+
+  - nilsver
+    - [a35e322] add black/white networks in appropriate zone
+    - [ecce369] add reload
+    - [9d6cb6f] add black white networks to rich rules
+
 ## 0.11.0
 
   - Rafael Gomez
