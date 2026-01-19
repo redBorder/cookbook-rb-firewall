@@ -34,6 +34,7 @@ default['firewall']['roles'] = {
   },
   'ips' => {
     'public' => {
+      'tcp_ports' => [443],
       'udp_ports' => [161, 162],
     },
   },
