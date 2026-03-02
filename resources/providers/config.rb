@@ -101,14 +101,6 @@ action :add do
     allowed_addresses.each do |ip|
       all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
     end
-
-    port = 8478 # CEP
-    query = 'role:manager'
-    allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.map { |n| n['ipaddress'] }
-    allowed_addresses.each do |ip|
-      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
-    end
   end
 
   # Vault

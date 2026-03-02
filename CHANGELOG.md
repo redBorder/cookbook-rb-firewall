@@ -1,6 +1,13 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.11.3
+
+  - Miguel Negrón
+    - [6fa78e1] Merge pull request #66 from redBorder/bugfix/#24064_check_if_manager_node_has_an_ip_before_adding_firewall_rule
+  - Rafael Gomez
+    - [9f62662] Registering the port 8478 (CEP) in zone home
+
 ## 0.11.2
 
   - nilsver
