@@ -178,11 +178,11 @@ action :add do
       # Compare public
       public_runtime = `firewall-cmd --zone=public --list-rich-rules`.strip
       public_permanent = `firewall-cmd --permanent --zone=public --list-rich-rules`.strip
-  
+
       # Compare libvirt
       libvirt_runtime = `firewall-cmd --zone=libvirt --list-ports`.strip
       libvirt_permanent = `firewall-cmd --permanent --zone=libvirt --list-ports`.strip
-  
+
       # If there is a difference in any of the areas: reload
       (public_runtime != public_permanent) || (libvirt_runtime != libvirt_permanent)
     end
