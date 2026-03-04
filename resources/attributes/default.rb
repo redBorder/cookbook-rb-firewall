@@ -25,7 +25,7 @@ default['firewall']['roles'] = {
       'protocols' => ['112'],
       'rich_rules' => ['rule family="ipv4" source address="224.0.0.18" accept'],
     },
-    'libvirt' => { 
+    'libvirt' => {
       'tcp_ports' => [2042],
     },
   },
