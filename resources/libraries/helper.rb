@@ -141,8 +141,8 @@ module Firewall
       flow_sensors.each do |node|
         uuid = node.dig('redborder', 'sensor_uuid') || node.dig('normal', 'redborder', 'sensor_uuid')
         ip = node['ipaddress'] ||
-             node.dig('redborder', 'ipaddress') ||
-             node.dig('normal', 'redborder', 'ipaddress')
+              node.dig('redborder', 'ipaddress') ||
+              node.dig('normal', 'redborder', 'ipaddress')
 
         next if proxy_uuids.include?(uuid)
 
@@ -210,6 +210,12 @@ module Firewall
         existing_networks << network
       end
       existing_networks
+    end
+
+    def zone_exists?(zone)
+      shell_out!("firewall-cmd --get-zones").stdout.split.include?(zone)
+    rescue Mixlib::ShellOut::ShellCommandFailed
+      false
     end
   end
 end

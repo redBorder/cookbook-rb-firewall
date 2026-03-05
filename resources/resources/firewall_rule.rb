@@ -16,6 +16,10 @@ action :create do
   extend Firewall::Helpers
 
   if shell_out!('firewall-cmd --state').stdout =~ /^running$/
+    unless zone_exists?(new_resource.zone)
+      Chef::Log.warn("Zone '#{new_resource.zone}' does not exist. Skipping firewall rule creation.")
+      return
+    end
     if new_resource.port
       Array(new_resource.port).each do |port|
         command = "firewall-cmd --zone=#{new_resource.zone} --add-port=#{port}/#{new_resource.protocol}"
@@ -64,6 +68,10 @@ action :delete do
   extend Firewall::Helpers
 
   if shell_out!('firewall-cmd --state').stdout =~ /^running$/
+    unless zone_exists?(new_resource.zone)
+      Chef::Log.warn("Zone '#{new_resource.zone}' does not exist. Skipping firewall rule creation.")
+      return
+    end
     if new_resource.port
       Array(new_resource.port).each do |port|
         command = "firewall-cmd --zone=#{new_resource.zone} --remove-port=#{port}/#{new_resource.protocol}"

@@ -3,6 +3,69 @@
 
 include Firewall::Helpers
 
+action :manage_libvirt_zone do
+  if is_manager?
+    zone_action = new_resource.libvirt_zone_action
+    
+    case zone_action
+    when :create
+      unless zone_exists?('libvirt')
+        Chef::Log.info('Creating libvirt zone for virtualization services')
+        
+        execute 'create_libvirt_zone' do
+          command 'firewall-cmd --permanent --new-zone=libvirt'
+          not_if "firewall-cmd --get-zones | grep -w libvirt"
+          notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+        end
+        
+        has_virbr0 = system("ip link show virbr0 > /dev/null 2>&1")
+        
+        if has_virbr0
+          execute 'add_virbr0_to_libvirt_zone' do
+            command 'firewall-cmd --permanent --zone=libvirt --add-interface=virbr0'
+            not_if "firewall-cmd --permanent --zone=libvirt --query-interface=virbr0"
+            notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+          end
+          
+          Chef::Log.info('Interface virbr0 added to libvirt zone')
+        else
+          Chef::Log.warn('Interface virbr0 not found, zone created but no interface added')
+        end
+        
+        Chef::Log.info('Libvirt zone has been created successfully')
+      else
+        Chef::Log.info('Libvirt zone already exists, skipping creation')
+      end
+      
+    when :delete
+      if zone_exists?('libvirt')
+        Chef::Log.info('Removing libvirt zone as it is no longer needed')
+        
+        execute 'remove_virbr0_from_libvirt_zone' do
+          command 'firewall-cmd --permanent --zone=libvirt --remove-interface=virbr0'
+          only_if "firewall-cmd --permanent --zone=libvirt --query-interface=virbr0"
+          ignore_failure true
+        end
+        
+        execute 'delete_libvirt_zone' do
+          command 'firewall-cmd --permanent --delete-zone=libvirt'
+          only_if "firewall-cmd --get-zones | grep -w libvirt"
+          notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+        end
+        
+        Chef::Log.info('Libvirt zone has been removed successfully')
+      else
+        Chef::Log.info('Libvirt zone does not exist, nothing to clean up')
+      end
+    end
+    
+    execute 'reload_after_libvirt_manage' do
+      command 'firewall-cmd --reload'
+      action :nothing
+    end
+  end
+end
+
 action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
@@ -60,6 +123,11 @@ action :add do
   roles.each do |role, zones|
     next unless send("is_#{role}?")
     zones.each do |zone|
+      # Check if the zone exists
+      unless zone_exists?(zone)
+        Chef::Log.warn("Zone '#{zone}' does not exist, skipping configuration")
+        next
+      end
       zone_rules = node['firewall']['roles'][role][zone].to_hash
       next if zone_rules.nil?
       all_managed_rich_rules[zone].concat(zone_rules['rich_rules'] || [])
@@ -141,6 +209,11 @@ action :add do
   end
 
   all_managed_rich_rules.each do |zone, final_rules|
+    # Check if the zone exists
+    unless zone_exists?(zone)
+      Chef::Log.warn("Zone '#{zone}' does not exist, skipping configuration")
+      next
+    end
     final_rich_rules_list = final_rules.uniq
     existing_perm_rules = get_existing_rules_in_zone(zone)
 
@@ -175,16 +248,9 @@ action :add do
   execute 'reload_firewalld' do
     command 'firewall-cmd --reload'
     only_if do
-      # Compare public
       runtime_rules = `firewall-cmd --zone=public --list-rich-rules`.strip
       permanent_rules = `firewall-cmd --permanent --zone=public --list-rich-rules`.strip
-
-      # Compare libvirt
-      libvirt_runtime = `firewall-cmd --zone=libvirt --list-ports`.strip
-      libvirt_permanent = `firewall-cmd --permanent --zone=libvirt --list-ports`.strip
-
-      # If there is a difference in any of the areas: reload
-      (runtime_rules != permanent_rules) || (libvirt_runtime != libvirt_permanent)
+      runtime_rules != permanent_rules
     end
     action :run
   end
