@@ -211,5 +211,11 @@ module Firewall
       end
       existing_networks
     end
+
+    def zone_exists?(zone)
+      shell_out!('firewall-cmd --get-zones').stdout.split.include?(zone)
+    rescue Mixlib::ShellOut::ShellCommandFailed
+      false
+    end
   end
 end

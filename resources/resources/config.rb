@@ -4,7 +4,7 @@
 #
 
 unified_mode true
-actions :add, :remove, :cleanup_virtual_ip_rules
+actions :add, :remove, :cleanup_virtual_ip_rules, :manage_libvirt_zone
 default_action :add
 
 attribute :user, kind_of: String, default: 'firewall'
@@ -17,3 +17,4 @@ property :ip_addr, String, required: false
 property :current_nginx_vip, kind_of: String, default: nil
 property :previous_nginx_vip, kind_of: String, default: nil
 property :manager_services, kind_of: Hash, default: {}
+property :libvirt_zone_action, Symbol, equal_to: [:create, :delete], default: :create
