@@ -9,52 +9,51 @@ action :manage_libvirt_zone do
 
     case zone_action
     when :create
-      if zone_exists?('libvirt')
-        Chef::Log.info('Libvirt zone already exists, skipping creation')
-      else
-        Chef::Log.info('Creating libvirt zone for virtualization services')
+      Chef::Log.info('Configuring libvirt zone for virtualization services')
 
-        execute 'create_libvirt_zone' do
-          command 'firewall-cmd --permanent --new-zone=libvirt'
-          not_if 'firewall-cmd --get-zones | grep -w libvirt'
+      has_virbr0 = system('ip link show virbr0 > /dev/null 2>&1')
+
+      if has_virbr0
+        execute 'add_virbr0_to_libvirt_zone' do
+          command 'firewall-cmd --permanent --zone=libvirt --add-interface=virbr0'
+          not_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
           notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
         end
 
-        has_virbr0 = system('ip link show virbr0 > /dev/null 2>&1')
-
-        if has_virbr0
-          execute 'add_virbr0_to_libvirt_zone' do
-            command 'firewall-cmd --permanent --zone=libvirt --add-interface=virbr0'
-            not_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
-            notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
-          end
-
-          Chef::Log.info('Interface virbr0 added to libvirt zone')
-        else
-          Chef::Log.warn('Interface virbr0 not found, zone created but no interface added')
-        end
+        Chef::Log.info('Interface virbr0 added to libvirt zone')
+      else
+        Chef::Log.warn('Interface virbr0 not found, cannot configure libvirt zone')
       end
+
+      # Add port 2042 to the libvirt zone
+      execute 'add_port_to_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --add-port=2042/tcp'
+        not_if 'firewall-cmd --permanent --zone=libvirt --query-port=2042/tcp'
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      Chef::Log.info('Port 2042/tcp configured in libvirt zone')
 
     when :delete
-      if zone_exists?('libvirt')
-        Chef::Log.info('Removing libvirt zone as it is no longer needed')
+      Chef::Log.info('Cleaning up libvirt zone configuration')
 
-        execute 'remove_virbr0_from_libvirt_zone' do
-          command 'firewall-cmd --permanent --zone=libvirt --remove-interface=virbr0'
-          only_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
-          ignore_failure true
-        end
-
-        execute 'delete_libvirt_zone' do
-          command 'firewall-cmd --permanent --delete-zone=libvirt'
-          only_if 'firewall-cmd --get-zones | grep -w libvirt'
-          notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
-        end
-
-        Chef::Log.info('Libvirt zone has been removed successfully')
-      else
-        Chef::Log.info('Libvirt zone does not exist, nothing to clean up')
+      # Remove the virbr0 interface from the zone
+      execute 'remove_virbr0_from_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --remove-interface=virbr0'
+        only_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
+        ignore_failure true
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
       end
+
+      # Remove port 2042 from the zone
+      execute 'remove_port_from_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --remove-port=2042/tcp'
+        only_if 'firewall-cmd --permanent --zone=libvirt --query-port=2042/tcp'
+        ignore_failure true
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      Chef::Log.info('Libvirt zone configuration has been cleaned up')
     end
 
     execute 'reload_after_libvirt_manage' do
