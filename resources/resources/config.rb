@@ -18,3 +18,4 @@ property :current_nginx_vip, kind_of: String, default: nil
 property :previous_nginx_vip, kind_of: String, default: nil
 property :manager_services, kind_of: Hash, default: {}
 property :libvirt_zone_action, Symbol, equal_to: [:create, :delete], default: :create
+property :needs_libvirt_zone, [true, false], default: false

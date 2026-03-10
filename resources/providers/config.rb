@@ -71,6 +71,7 @@ action :add do
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
   vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
   all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
+  needs_libvirt = new_resource.needs_libvirt_zone
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -112,8 +113,10 @@ action :add do
     end
   end
 
+  manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
+
   roles = {
-    'manager' => %w(home public libvirt),
+    'manager' => manager_zones,
     'proxy' => %w(public),
     'ips' => %w(public),
   }
