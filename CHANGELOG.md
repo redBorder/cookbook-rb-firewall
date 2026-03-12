@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.12.0
+
+  - Pablo Torres
+    - [e710234] Feature #22343: Add default ports for cape services
+
 ## 0.11.3
 
   - Miguel Negrón
