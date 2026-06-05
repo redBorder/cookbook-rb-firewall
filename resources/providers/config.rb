@@ -183,7 +183,7 @@ action :add do
     port = 514
     query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }.map { |n| n['ipaddress'] }
+    allowed_addresses = allowed_nodes.map { |n| n['ipaddress'] }
     allowed_addresses.each do |ip|
       all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
       if is_manager?
