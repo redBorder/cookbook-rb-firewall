@@ -183,17 +183,33 @@ module Firewall
 
     def get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
       allowed_ips = []
-      proxy_id = node['redborder']['sensor_id']
+      redborder_node = node['redborder']
+      unless redborder_node.is_a?(Hash)
+        Chef::Log.warn('>> [Firewall] get_ips_allowed_for_syslog_in_proxy: node missing redborder attribute')
+        return []
+      end
+
+      proxy_id = redborder_node['sensor_id']
+      unless proxy_id.is_a?(Integer) || (proxy_id.is_a?(String) && !proxy_id.empty?)
+        Chef::Log.warn('>> [Firewall] get_ips_allowed_for_syslog_in_proxy: node has no valid sensor_id')
+        return []
+      end
 
       (vault_sensor_in_proxy_nodes || []).each do |sensor_node|
         sensor_info = sensor_node.to_hash
         next unless sensor_info.is_a?(Hash)
 
-        parent_id = sensor_info['redborder']['parent_id']
+        redborder_info = sensor_info['redborder']
+        unless redborder_info.is_a?(Hash)
+          Chef::Log.warn(">> [Proxy] Sensor omitted: missing redborder attribute (node=#{sensor_info['fqdn'].inspect})")
+          next
+        end
+
+        parent_id = redborder_info['parent_id']
         ip = sensor_info['ipaddress']
 
         # Just add the IP if it matches the parent_id and is a valid IPv4 address
-        if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+        if !parent_id.nil? && parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
           allowed_ips << ip
         else
           Chef::Log.warn(">> [Proxy] Sensor omitted: IP=#{ip.inspect}, parent_id=#{parent_id}")
