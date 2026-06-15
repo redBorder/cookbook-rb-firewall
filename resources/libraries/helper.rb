@@ -189,7 +189,7 @@ module Firewall
         sensor_info = sensor_node.to_hash
         next unless sensor_info.is_a?(Hash)
 
-        redborder_info = sensor_info['redborder']
+        redborder_info = sensor_info['redborder'] || sensor_info.dig('normal', 'redborder')
         unless redborder_info.is_a?(Hash)
           Chef::Log.warn(">> [Proxy] Sensor omitted: missing redborder attribute (node=#{sensor_info['fqdn'].inspect})")
           next
