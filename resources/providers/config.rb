@@ -181,10 +181,13 @@ action :add do
     end
   elsif !is_ips?
     port = 514
-    proxy_sensor_ids = search(:node, 'role:proxy').map { |n| n['redborder'].is_a?(Hash) ? n['redborder']['sensor_id'] : nil }.compact
+    # Vaults that report to a proxy are handled by that proxy, so the manager must
+    # not open 514 for them. The proxy mapping is authoritative and updates as soon
+    # as the sensor is moved in the UI (no dependency on the vault running chef-client).
+    proxy_vault_ips = get_vault_ips_in_proxies(vault_sensor_in_proxy_nodes)
     query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |n| n['redborder'].is_a?(Hash) && !proxy_sensor_ids.include?(n['redborder']['parent_id']) }.map { |n| n['ipaddress'] }
+    allowed_addresses = allowed_nodes.reject { |n| proxy_vault_ips.include?(n['ipaddress']) }.map { |n| n['ipaddress'] }
     allowed_addresses.each do |ip|
       all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
       if is_manager?

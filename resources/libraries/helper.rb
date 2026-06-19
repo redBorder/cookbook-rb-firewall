@@ -181,32 +181,40 @@ module Firewall
       allowed_ips.uniq.compact
     end
 
+    # Returns a list of IPs of vault sensors that are allowed to send syslog to the proxy.
+    # vault_sensor_in_proxy_nodes comes from each proxy role's sensors_mapping['vault'],
+    # so every element is a Hash like { hostname => redborder_attrs }.
     def get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
       allowed_ips = []
       proxy_id = node['redborder']['sensor_id']
 
-      (vault_sensor_in_proxy_nodes || []).each do |sensor_node|
-        sensor_info = sensor_node.to_hash
+      (vault_sensor_in_proxy_nodes || []).each do |sensor_info|
         next unless sensor_info.is_a?(Hash)
 
-        redborder_info = sensor_info['redborder'] || sensor_info.dig('normal', 'redborder')
-        unless redborder_info.is_a?(Hash)
-          Chef::Log.warn(">> [Proxy] Sensor omitted: missing redborder attribute (node=#{sensor_info['fqdn'].inspect})")
-          next
-        end
+        sensor_info.each do |_hostname, data|
+          next unless data.is_a?(Hash)
 
-        parent_id = redborder_info['parent_id']
-        ip = sensor_info['ipaddress']
+          parent_id = data['parent_id']
+          ip = data['ipaddress']
 
-        # Just add the IP if it matches the parent_id and is a valid IPv4 address
-        if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
-          allowed_ips << ip
-        else
-          Chef::Log.warn(">> [Proxy] Sensor omitted: IP=#{ip.inspect}, parent_id=#{parent_id}")
+          # Just add the IP if it matches the parent_id and is a valid IPv4 address
+          if parent_id.to_i == proxy_id.to_i && ip =~ /^\d{1,3}(\.\d{1,3}){3}$/
+            allowed_ips << ip
+          else
+            Chef::Log.warn(">> [Syslog Proxy] Sensor omitted: IP=#{ip.inspect}, parent_id=#{parent_id}")
+          end
         end
       end
 
       allowed_ips.uniq.compact
+    end
+
+    # Returns the IPs of all vault sensors that report to ANY proxy. Used by the
+    # manager to avoid opening port 514 for vaults already handled by a proxy.
+    # Authoritative: comes from the proxies' sensors_mapping, so it does not depend
+    # on each vault sensor having run chef-client after being moved.
+    def get_vault_ips_in_proxies(vault_sensor_in_proxy_nodes)
+      vault_sensor_in_proxy_nodes.flat_map { |h| h.values.map { |v| v['ipaddress'] } }.compact.uniq
     end
 
     def get_existing_sources(zone)
