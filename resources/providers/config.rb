@@ -181,9 +181,10 @@ action :add do
     end
   elsif !is_ips?
     port = 514
+    proxy_vault_ips = get_vault_ips_in_proxies(vault_sensor_in_proxy_nodes)
     query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }.map { |n| n['ipaddress'] }
+    allowed_addresses = allowed_nodes.reject { |n| proxy_vault_ips.include?(n['ipaddress']) }.map { |n| n['ipaddress'] }
     allowed_addresses.each do |ip|
       all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
       if is_manager?
