@@ -181,9 +181,6 @@ action :add do
     end
   elsif !is_ips?
     port = 514
-    # Vaults that report to a proxy are handled by that proxy, so the manager must
-    # not open 514 for them. The proxy mapping is authoritative and updates as soon
-    # as the sensor is moved in the UI (no dependency on the vault running chef-client).
     proxy_vault_ips = get_vault_ips_in_proxies(vault_sensor_in_proxy_nodes)
     query = 'role:manager OR role:vault-sensor'
     allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
