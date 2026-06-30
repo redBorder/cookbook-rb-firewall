@@ -3,6 +3,66 @@
 
 include Firewall::Helpers
 
+action :manage_libvirt_zone do
+  if is_manager?
+    zone_action = new_resource.libvirt_zone_action
+
+    case zone_action
+    when :create
+      Chef::Log.info('Configuring libvirt zone for virtualization services')
+
+      has_virbr0 = system('ip link show virbr0 > /dev/null 2>&1')
+
+      if has_virbr0
+        execute 'add_virbr0_to_libvirt_zone' do
+          command 'firewall-cmd --permanent --zone=libvirt --add-interface=virbr0'
+          not_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
+          notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+        end
+
+        Chef::Log.info('Interface virbr0 added to libvirt zone')
+      else
+        Chef::Log.warn('Interface virbr0 not found, cannot configure libvirt zone')
+      end
+
+      # Add port 2042 to the libvirt zone
+      execute 'add_port_to_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --add-port=2042/tcp'
+        not_if 'firewall-cmd --permanent --zone=libvirt --query-port=2042/tcp'
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      Chef::Log.info('Port 2042/tcp configured in libvirt zone')
+
+    when :delete
+      Chef::Log.info('Cleaning up libvirt zone configuration')
+
+      # Remove the virbr0 interface from the zone
+      execute 'remove_virbr0_from_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --remove-interface=virbr0'
+        only_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
+        ignore_failure true
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      # Remove port 2042 from the zone
+      execute 'remove_port_from_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --remove-port=2042/tcp'
+        only_if 'firewall-cmd --permanent --zone=libvirt --query-port=2042/tcp'
+        ignore_failure true
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      Chef::Log.info('Libvirt zone configuration has been cleaned up')
+    end
+
+    execute 'reload_after_libvirt_manage' do
+      command 'firewall-cmd --reload'
+      action :nothing
+    end
+  end
+end
+
 action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
@@ -11,6 +71,7 @@ action :add do
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
   vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
   all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
+  needs_libvirt = new_resource.needs_libvirt_zone
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -52,14 +113,21 @@ action :add do
     end
   end
 
+  manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
+
   roles = {
-    'manager' => %w(home public),
+    'manager' => manager_zones,
     'proxy' => %w(public),
     'ips' => %w(public),
   }
   roles.each do |role, zones|
     next unless send("is_#{role}?")
     zones.each do |zone|
+      # Check if the zone exists
+      unless zone_exists?(zone)
+        Chef::Log.warn("Zone '#{zone}' does not exist, skipping configuration")
+        next
+      end
       zone_rules = node['firewall']['roles'][role][zone].to_hash
       next if zone_rules.nil?
       all_managed_rich_rules[zone].concat(zone_rules['rich_rules'] || [])
@@ -98,14 +166,6 @@ action :add do
   if is_manager? && sync_ip != ip_addr
     port = 9092 # Kafka
     allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
-    allowed_addresses.each do |ip|
-      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
-    end
-
-    port = 8478 # CEP
-    query = 'role:manager'
-    allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.map { |n| n['ipaddress'] }
     allowed_addresses.each do |ip|
       all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
     end
@@ -149,6 +209,11 @@ action :add do
   end
 
   all_managed_rich_rules.each do |zone, final_rules|
+    # Check if the zone exists
+    unless zone_exists?(zone)
+      Chef::Log.warn("Zone '#{zone}' does not exist, skipping configuration")
+      next
+    end
     final_rich_rules_list = final_rules.uniq
     existing_perm_rules = get_existing_rules_in_zone(zone)
 
