@@ -1,6 +1,12 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.12.1
+
+  - aguzman
+    - [9607057] resolve bugs and fixed drag proxy issue
+    - [3d178c9] Fix port 514 not open after vault sensor dragged to organization
+
 ## 0.12.0
 
   - Pablo Torres
