@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.12.2
+
+  - Pablo Pérez
+    - [758a87e] Open 8047 for drill in home tcp (#67)
+
 ## 0.12.1
 
   - aguzman
