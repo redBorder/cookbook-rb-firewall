@@ -231,5 +231,14 @@ module Firewall
     rescue Mixlib::ShellOut::ShellCommandFailed
       false
     end
+
+    # redborder-hub is running
+    def hub_running?
+      cmd = Mixlib::ShellOut.new('systemctl is-active --quiet redborder-hub')
+      cmd.run_command
+      cmd.exitstatus.zero?
+    rescue Errno::ENOENT
+      false
+    end
   end
 end

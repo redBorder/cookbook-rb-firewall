@@ -115,6 +115,21 @@ action :add do
 
   manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
 
+  # redborder-hub port: open only if the service is active
+  if is_manager?
+    hub_port = 8010
+
+    %w(home public).each do |zone|
+      current_ports = node['firewall']['roles']['manager'][zone]['tcp_ports']
+
+      if hub_running?
+        node.default['firewall']['roles']['manager'][zone]['tcp_ports'] = (current_ports | [hub_port])
+      else
+        node.default['firewall']['roles']['manager'][zone]['tcp_ports'] = (current_ports - [hub_port])
+      end
+    end
+  end
+
   roles = {
     'manager' => manager_zones,
     'proxy' => %w(public),
