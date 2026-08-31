@@ -115,7 +115,6 @@ action :add do
 
   manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
 
-
   roles = {
     'manager' => manager_zones,
     'proxy' => %w(public),
