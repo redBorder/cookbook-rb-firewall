@@ -212,8 +212,7 @@ action :add do
 
   # redborder-hub
   if is_manager?
-    manager_services = new_resource.manager_services || {}
-    hub_action = manager_services['redborder-hub'] ? :create : :delete
+    hub_action = new_resource.manager_services['redborder-hub'] ? :create : :delete
 
     %w(home public).each do |zone|
       apply_rule(:port, { port: 8010, action: hub_action }, zone, 'tcp')
