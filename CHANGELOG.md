@@ -1,6 +1,85 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.12.2
+
+  - Pablo Pérez
+    - [758a87e] Open 8047 for drill in home tcp (#67)
+
+## 0.12.1
+
+  - aguzman
+    - [9607057] resolve bugs and fixed drag proxy issue
+    - [3d178c9] Fix port 514 not open after vault sensor dragged to organization
+
+## 0.12.0
+
+  - Pablo Torres
+    - [e710234] Feature #22343: Add default ports for cape services
+
+## 0.11.3
+
+  - Miguel Negrón
+    - [6fa78e1] Merge pull request #66 from redBorder/bugfix/#24064_check_if_manager_node_has_an_ip_before_adding_firewall_rule
+  - Rafael Gomez
+    - [9f62662] Registering the port 8478 (CEP) in zone home
+
+## 0.11.2
+
+  - nilsver
+    - [ccb2058] handle map call on nil object
+
+## 0.11.1
+
+  - nilsver
+    - [a35e322] add black/white networks in appropriate zone
+    - [ecce369] add reload
+    - [9d6cb6f] add black white networks to rich rules
+
+## 0.11.0
+
+  - Rafael Gomez
+    - [21f1257] Open web airflow in zone public
+  - vimesa
+    - [50cd642] Modify airflow port
+    - [7fe6568] Add airflow port
+
+## 0.10.2
+
+  - nilsver
+    - [9d4c562] fix typo
+
+## 0.10.1
+
+  - manegron
+    - [b05fcfe] Adjust condition for iptables redirect
+
+## 0.10.0
+
+  - manegron
+    - [25c32b0] Open 7777 (rb-reputation)
+
+## 0.9.2
+
+  - nilsver
+    - [7bcea41] Merge pull request #50 from redBorder/Bugfix/#20693_3_light_alternative
+    - [d150cb5] fix from other task iptables
+
+## 0.9.1
+
+  - Juan Soto
+    - [b0e7bad] Enhance firewall rule management for vault sensors by adding UDP support and improving address filtering logic
+
+## 0.9.0
+
+  - nilsver
+    - [e55b61b] manage iptables rules in action
+
+## 0.8.2
+
+  - Rafael Gomez
+    - [b733d92] Remove mongodb port
+
 ## 0.8.1
 
   - Pablo Pérez

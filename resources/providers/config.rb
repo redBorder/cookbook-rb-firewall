@@ -3,6 +3,66 @@
 
 include Firewall::Helpers
 
+action :manage_libvirt_zone do
+  if is_manager?
+    zone_action = new_resource.libvirt_zone_action
+
+    case zone_action
+    when :create
+      Chef::Log.info('Configuring libvirt zone for virtualization services')
+
+      has_virbr0 = system('ip link show virbr0 > /dev/null 2>&1')
+
+      if has_virbr0
+        execute 'add_virbr0_to_libvirt_zone' do
+          command 'firewall-cmd --permanent --zone=libvirt --add-interface=virbr0'
+          not_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
+          notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+        end
+
+        Chef::Log.info('Interface virbr0 added to libvirt zone')
+      else
+        Chef::Log.warn('Interface virbr0 not found, cannot configure libvirt zone')
+      end
+
+      # Add port 2042 to the libvirt zone
+      execute 'add_port_to_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --add-port=2042/tcp'
+        not_if 'firewall-cmd --permanent --zone=libvirt --query-port=2042/tcp'
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      Chef::Log.info('Port 2042/tcp configured in libvirt zone')
+
+    when :delete
+      Chef::Log.info('Cleaning up libvirt zone configuration')
+
+      # Remove the virbr0 interface from the zone
+      execute 'remove_virbr0_from_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --remove-interface=virbr0'
+        only_if 'firewall-cmd --permanent --zone=libvirt --query-interface=virbr0'
+        ignore_failure true
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      # Remove port 2042 from the zone
+      execute 'remove_port_from_libvirt_zone' do
+        command 'firewall-cmd --permanent --zone=libvirt --remove-port=2042/tcp'
+        only_if 'firewall-cmd --permanent --zone=libvirt --query-port=2042/tcp'
+        ignore_failure true
+        notifies :run, 'execute[reload_after_libvirt_manage]', :immediately
+      end
+
+      Chef::Log.info('Libvirt zone configuration has been cleaned up')
+    end
+
+    execute 'reload_after_libvirt_manage' do
+      command 'firewall-cmd --reload'
+      action :nothing
+    end
+  end
+end
+
 action :add do
   sync_ip = new_resource.sync_ip
   ip_addr = new_resource.ip_addr
@@ -10,6 +70,8 @@ action :add do
   flow_sensor_in_proxy_nodes = new_resource.flow_sensor_in_proxy_nodes || []
   ip_address_ips_nodes = get_ip_of_manager_ips_nodes
   vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
+  all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
+  needs_libvirt = new_resource.needs_libvirt_zone
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -51,22 +113,28 @@ action :add do
     end
   end
 
-  # Applying firewall ports, protocols, and rich rules based on zones
+  manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
+
   roles = {
-    'manager' => %w(home public),
+    'manager' => manager_zones,
     'proxy' => %w(public),
     'ips' => %w(public),
   }
   roles.each do |role, zones|
     next unless send("is_#{role}?")
-
     zones.each do |zone|
-      zone_rules = node['firewall']['roles'][role][zone]
+      # Check if the zone exists
+      unless zone_exists?(zone)
+        Chef::Log.warn("Zone '#{zone}' does not exist, skipping configuration")
+        next
+      end
+      zone_rules = node['firewall']['roles'][role][zone].to_hash
       next if zone_rules.nil?
+      all_managed_rich_rules[zone].concat(zone_rules['rich_rules'] || [])
 
       existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
       existing_protocols = get_existing_protocols_in_zone(zone)
-      existing_rules = get_existing_rules_in_zone(zone)
+
       Array(zone_rules['tcp_ports']).each do |port|
         apply_rule(:port, { port: port, action: :create }, zone, 'tcp') unless existing_tcp_ports.include?(port.to_s)
       end
@@ -77,9 +145,6 @@ action :add do
         unless existing_protocols.include?(protocol)
           apply_rule(:protocol, { protocol: protocol, action: :create }, zone)
         end
-      end
-      Array(zone_rules['rich_rules']).each do |rule|
-        apply_rule(:rich_rule, { rule: rule, action: :create }, zone) unless existing_rules.include?(rule)
       end
 
       # Remove firewall ports and protocols that aren't in the attributes/default.rb zone rules
@@ -99,115 +164,88 @@ action :add do
   end
 
   if is_manager? && sync_ip != ip_addr
-    # Managing port 9092 on the manager only for that specific IPS
-    port = 9092 # kafka
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
+    port = 9092 # Kafka
     allowed_addresses = ip_address_ips_nodes.empty? ? [] : ip_address_ips_nodes.map { |ips| ips[:ipaddress] }
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Kafka', port: port, ip: ip, action: :create }, 'public', 'tcp')
-    end
-
-    # Managing port 8478 on the manager only for other managers in the public zone
-    port = 8478 # redborder-cep
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    query = 'role:manager'
-    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.map { |node| node['ipaddress'] }
-    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'CEP', port: port, ip: ip, action: :create }, 'public', 'tcp')
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
     end
   end
 
-  # Managing port 514 on the manager only for vault sensors, managers, ips and proxies
+  # Vault
   if is_proxy?
     port = 514
-    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
     allowed_addresses = get_ips_allowed_for_syslog_in_proxy(vault_sensor_in_proxy_nodes)
-
-    (existing_tcp_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-    (allowed_addresses - existing_tcp_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
-    end
-
-    existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
-    (existing_udp_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
-    end
-    (allowed_addresses - existing_udp_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
     end
   elsif !is_ips?
     port = 514
+    proxy_vault_ips = get_vault_ips_in_proxies(vault_sensor_in_proxy_nodes)
     query = 'role:manager OR role:vault-sensor'
-    allowed_nodes = search(:node, query).reject { |node| node['ipaddress'] == ip_addr }.sort_by(&:name)
-    allowed_addresses = allowed_nodes.select { |n| n['redborder']['parent_id'].nil? }
-                                     .map { |n| n['ipaddress'] }
-    target_addresses = allowed_addresses.empty? ? [] : allowed_addresses
-
-    existing_tcp_addresses = get_existing_ip_addresses_in_rules(port, 'tcp')
-    (existing_tcp_addresses - target_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'tcp')
-    end
-    (allowed_addresses - existing_tcp_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'tcp')
-    end
-
-    if is_manager?
-      existing_udp_addresses = get_existing_ip_addresses_in_rules(port, 'udp')
-      (existing_udp_addresses - target_addresses).each do |ip|
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :delete }, 'public', 'udp')
-      end
-      (allowed_addresses - existing_udp_addresses).each do |ip|
-        apply_rule(:filter_by_ip, { name: 'Vault', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_nodes = search(:node, query).reject { |n| n['ipaddress'] == ip_addr }.sort_by(&:name)
+    allowed_addresses = allowed_nodes.reject { |n| proxy_vault_ips.include?(n['ipaddress']) }.map { |n| n['ipaddress'] }
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"tcp\" accept"
+      if is_manager?
+        all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
       end
     end
   end
 
-  # Allowing sFlow traffic only for the IP sending sFlow
+  # sFlow
   if is_manager?
     port = 6343
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
-    allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, new_resource.ip_addr)
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_addresses = get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
     end
   end
-
-  # Allowing sFlow traffic only for the IP sending sFlow in the proxy
   if is_proxy?
     port = 6343
-    existing_addresses = get_existing_ip_addresses_in_rules(port).uniq
     allowed_addresses = get_ips_allowed_for_sflow_in_proxy(flow_sensor_in_proxy_nodes)
-
-    (existing_addresses - allowed_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :delete }, 'public', 'udp')
-    end
-
-    (allowed_addresses - existing_addresses).each do |ip|
-      apply_rule(:filter_by_ip, { name: 'sFlow', port: port, ip: ip, action: :create }, 'public', 'udp')
+    allowed_addresses.each do |ip|
+      all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{port}\" protocol=\"udp\" accept"
     end
   end
 
-  # Reload firewalld only if the runtime rules are different than the permanent rules
-  # (a rule has been added/deleted and the service needs to be reloaded)
+  all_managed_rich_rules.each do |zone, final_rules|
+    # Check if the zone exists
+    unless zone_exists?(zone)
+      Chef::Log.warn("Zone '#{zone}' does not exist, skipping configuration")
+      next
+    end
+    final_rich_rules_list = final_rules.uniq
+    existing_perm_rules = get_existing_rules_in_zone(zone)
+
+    (final_rich_rules_list - existing_perm_rules).each do |rule|
+      apply_rule(:rich_rule, { rule: rule, action: :create }, zone)
+    end
+    (existing_perm_rules - final_rich_rules_list).each do |rule|
+      apply_rule(:rich_rule, { rule: rule, action: :delete }, zone)
+    end
+  end
+
+  if is_manager?
+    white_networks = Array(node.dig('redborder', 'white_networks')).map { |h| h['network'].to_s }
+    black_networks = Array(node.dig('redborder', 'black_networks')).map { |h| h['network'].to_s }
+    existing_white_networks = get_existing_sources('trusted')
+    existing_black_networks = get_existing_sources('block')
+
+    (white_networks - existing_white_networks).each do |network|
+      apply_rule(:network, { network: network, action: :create }, 'trusted')
+    end
+    (existing_white_networks - white_networks).each do |network|
+      apply_rule(:network, { network: network, action: :delete }, 'trusted')
+    end
+    (black_networks - existing_black_networks).each do |network|
+      apply_rule(:network, { network: network, action: :create }, 'block')
+    end
+    (existing_black_networks - black_networks).each do |network|
+      apply_rule(:network, { network: network, action: :delete }, 'block')
+    end
+  end
+
   execute 'reload_firewalld' do
     command 'firewall-cmd --reload'
     only_if do
@@ -227,4 +265,20 @@ action :remove do
   end
 
   Chef::Log.info('Firewall configuration has been removed.')
+end
+
+action :cleanup_virtual_ip_rules do
+  if is_manager?
+    previous_nginx_vip = new_resource.previous_nginx_vip
+    current_nginx_vip = new_resource.current_nginx_vip
+    manager_services = new_resource.manager_services || {}
+
+    if previous_nginx_vip && (previous_nginx_vip != current_nginx_vip || !manager_services['keepalived'] || !manager_services['nginx'])
+      execute 'remove_old_webui_iptables_rule' do
+        command "iptables -t nat -D PREROUTING -d #{previous_nginx_vip} -j REDIRECT"
+        only_if "iptables -t nat -C PREROUTING -d #{previous_nginx_vip} -j REDIRECT"
+        ignore_failure true
+      end
+    end
+  end
 end
