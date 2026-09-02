@@ -115,6 +115,35 @@ action :add do
 
   manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
 
+  # grr services
+  if is_manager?
+    # zone => { port => systemd_service_name }}
+    conditional_ports = {
+      'home' => {
+        8443 => 'grr-fleetspeak',
+        8002 => 'grr-adminui',
+        8084 => 'grr-frontend',
+      },
+      'public' => {
+        8002 => 'grr-adminui',
+      },
+    }
+
+    conditional_ports.each do |zone, ports_map|
+      current_ports = node['firewall']['roles']['manager'][zone]['tcp_ports']
+
+      ports_map.each do |port, service_name|
+        if service_active?(service_name)
+          current_ports = current_ports | [port]
+        else
+          current_ports = current_ports - [port]
+        end
+      end
+
+      node.default['firewall']['roles']['manager'][zone]['tcp_ports'] = current_ports
+    end
+  end
+
   roles = {
     'manager' => manager_zones,
     'proxy' => %w(public),
