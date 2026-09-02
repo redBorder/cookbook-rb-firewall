@@ -115,17 +115,16 @@ action :add do
 
   manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
 
+  # grr services
   if is_manager?
     # zone => { port => systemd_service_name }}
     conditional_ports = {
       'home' => {
-        8010 => 'redborder-hub',
         8443 => 'grr-fleetspeak',
         8002 => 'grr-adminui',
         8084 => 'grr-frontend',
       },
       'public' => {
-        8010 => 'redborder-hub',
         8002 => 'grr-adminui',
       },
     }
