@@ -1,6 +1,16 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.13.0
+
+  - vimesa
+    - [f8ce0a0] Add redborder-hub port
+
+## 0.12.2
+
+  - Pablo Pérez
+    - [758a87e] Open 8047 for drill in home tcp (#67)
+
 ## 0.12.1
 
   - aguzman
