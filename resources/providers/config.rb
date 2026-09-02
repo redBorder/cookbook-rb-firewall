@@ -239,6 +239,15 @@ action :add do
     end
   end
 
+  # redborder-hub
+  if is_manager?
+    hub_action = new_resource.manager_services['redborder-hub'] ? :create : :delete
+
+    %w(home public).each do |zone|
+      apply_rule(:port, { port: 8010, action: hub_action }, zone, 'tcp')
+    end
+  end
+
   all_managed_rich_rules.each do |zone, final_rules|
     # Check if the zone exists
     unless zone_exists?(zone)
