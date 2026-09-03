@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.13.0
+
+  - vimesa
+    - [f8ce0a0] Add redborder-hub port
+
 ## 0.12.2
 
   - Pablo Pérez
