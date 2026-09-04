@@ -19,7 +19,7 @@ Source0: %{name}-%{version}.tar.gz
 %install
 mkdir -p %{buildroot}/var/chef/cookbooks/rb-firewall
 cp -f -r  resources/* %{buildroot}/var/chef/cookbooks/rb-firewall
-chmod -R u+rwX,go+rX,go-w %{buildroot}/var/chef/cookbooks/rb-firewall
+chmod -R 0644 %{buildroot}/var/chef/cookbooks/rb-firewall
 install -D -m 0644 README.md %{buildroot}/var/chef/cookbooks/rb-firewall/README.md
 
 %pre
