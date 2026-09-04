@@ -72,6 +72,7 @@ action :add do
   vault_sensor_in_proxy_nodes = new_resource.vault_sensor_in_proxy_nodes || []
   all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
   needs_libvirt = new_resource.needs_libvirt_zone
+  manager_services = new_resource.manager_services || {}
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -130,6 +131,17 @@ action :add do
       end
       zone_rules = node['firewall']['roles'][role][zone].to_hash
       next if zone_rules.nil?
+
+      # vsftpd (cookbook-rb-backup-transfer, config-snapshot backup/rollback
+      # feature) only needs tcp 21 + the passive range reachable while the
+      # service is actually enabled -- keep it out of the static attribute
+      # table so it stays closed (and gets closed again if toggled off,
+      # via the removal pass below) on managers that don't use it.
+      if role == 'manager' && zone == 'home' && manager_services['ftp']
+        zone_rules = zone_rules.dup
+        zone_rules['tcp_ports'] = Array(zone_rules['tcp_ports']) | ([21] + (21000..21010).to_a)
+      end
+
       all_managed_rich_rules[zone].concat(zone_rules['rich_rules'] || [])
 
       existing_tcp_ports, existing_udp_ports = get_existing_ports_in_zone(zone)
