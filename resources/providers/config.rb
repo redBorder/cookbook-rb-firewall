@@ -117,30 +117,20 @@ action :add do
 
   # grr services
   if is_manager?
-    # zone => { port => systemd_service_name }}
-    conditional_ports = {
-      'home' => {
-        8443 => 'grr-fleetspeak',
-        8002 => 'grr-adminui',
-        8084 => 'grr-frontend',
-      },
-      'public' => {
-        8002 => 'grr-adminui',
-      },
+    grr_ports = {
+      'grr-fleetspeak' => { 8443 => %w(home) },
+      'grr-adminui'    => { 8002 => %w(home public) },
+      'grr-frontend'   => { 8084 => %w(home) },
     }
 
-    conditional_ports.each do |zone, ports_map|
-      current_ports = node['firewall']['roles']['manager'][zone]['tcp_ports']
+    grr_ports.each do |service_name, port_zones|
+      action = new_resource.manager_services[service_name] ? :create : :delete
 
-      ports_map.each do |port, service_name|
-        if service_active?(service_name)
-          current_ports = current_ports | [port]
-        else
-          current_ports = current_ports - [port]
+      port_zones.each do |port, zones|
+        zones.each do |zone|
+          apply_rule(:port, { port: port, action: action }, zone, 'tcp')
         end
       end
-
-      node.default['firewall']['roles']['manager'][zone]['tcp_ports'] = current_ports
     end
   end
 

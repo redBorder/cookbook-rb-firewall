@@ -231,13 +231,5 @@ module Firewall
     rescue Mixlib::ShellOut::ShellCommandFailed
       false
     end
-
-    def service_active?(service_name)
-      cmd = Mixlib::ShellOut.new("systemctl is-active --quiet #{service_name}")
-      cmd.run_command
-      cmd.exitstatus.zero?
-    rescue Errno::ENOENT
-      false
-    end
   end
 end
