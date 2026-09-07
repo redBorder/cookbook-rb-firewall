@@ -115,6 +115,29 @@ action :add do
 
   manager_zones = needs_libvirt ? %w(home public libvirt) : %w(home public)
 
+  # grr services
+  if is_manager?
+    grr_ports = {
+      'grr-fleetspeak' => { 8443 => %w(home) },
+      'grr-adminui'    => { 8002 => %w(home public) },
+      'grr-frontend'   => { 8084 => %w(home) },
+    }
+
+    grr_ports.each do |service_name, port_zones|
+      action = new_resource.manager_services[service_name] ? :create : :delete
+
+      port_zones.each do |port, zones|
+        zones.each do |zone|
+          apply_rule(:port, { port: port, action: action }, zone, 'tcp')
+        end
+      end
+    end
+
+    execute 'reload_firewalld_after_grr_rules' do
+      command 'firewall-cmd --reload'
+    end
+  end
+
   roles = {
     'manager' => manager_zones,
     'proxy' => %w(public),
