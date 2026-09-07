@@ -132,6 +132,10 @@ action :add do
         end
       end
     end
+
+    execute 'reload_firewalld_after_grr_rules' do
+      command 'firewall-cmd --reload'
+    end
   end
 
   roles = {
