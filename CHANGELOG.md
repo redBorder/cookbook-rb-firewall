@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 0.14.0
+
+  - Vimesa
+    - [4561161] Feature/#26201 integrate grr (#76)
+
 ## 0.13.0
 
   - vimesa
