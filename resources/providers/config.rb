@@ -220,9 +220,9 @@ action :add do
     grr_ports.each do |service_name, port_zones|
       action = new_resource.manager_services[service_name] ? :create : :delete
 
-      port_zones.each do |port, zones|
+      port_zones.each do |target_port, zones|
         zones.each do |zone|
-          apply_rule(:port, { port: port, action: action }, zone, 'tcp')
+          apply_rule(:port, { port: target_port, action: action }, zone, 'tcp')
         end
       end
     end
