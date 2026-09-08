@@ -209,6 +209,25 @@ action :add do
     end
   end
 
+  # grr services
+  if is_manager?
+    grr_ports = {
+      'grr-fleetspeak' => { 8443 => %w(home) },
+      'grr-adminui'    => { 8002 => %w(home public) },
+      'grr-frontend'   => { 8084 => %w(home) },
+    }
+
+    grr_ports.each do |service_name, port_zones|
+      action = new_resource.manager_services[service_name] ? :create : :delete
+
+      port_zones.each do |target_port, zones|
+        zones.each do |zone|
+          apply_rule(:port, { port: target_port, action: action }, zone, 'tcp')
+        end
+      end
+    end
+  end
+
   # redborder-hub
   if is_manager?
     hub_action = new_resource.manager_services['redborder-hub'] ? :create : :delete
