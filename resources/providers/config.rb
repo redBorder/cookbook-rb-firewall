@@ -132,7 +132,7 @@ action :add do
       zone_rules = node['firewall']['roles'][role][zone].to_hash
       next if zone_rules.nil?
 
-      # vsftpd (cookbook-rb-backup-transfer, config-snapshot backup/rollback
+      # vsftpd (cookbook-vsftpd, config-snapshot backup/rollback
       # feature) only needs tcp 21 + the passive range reachable while the
       # service is actually enabled -- keep it out of the static attribute
       # table so it stays closed (and gets closed again if toggled off,
