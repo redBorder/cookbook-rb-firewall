@@ -137,7 +137,12 @@ action :add do
       # service is actually enabled -- keep it out of the static attribute
       # table so it stays closed (and gets closed again if toggled off,
       # via the removal pass below) on managers that don't use it.
-      if role == 'manager' && zone == 'home' && manager_services['ftp']
+      # Opened in both home and public: network devices push their config
+      # over whichever zone they actually reach this manager on -- home
+      # alone isn't enough, since devices are typically only routable via
+      # public (confirmed live: device's FTP push never reached vsftpd at
+      # all when only home had the port open).
+      if role == 'manager' && %w(home public).include?(zone) && manager_services['ftp']
         zone_rules = zone_rules.dup
         zone_rules['tcp_ports'] = Array(zone_rules['tcp_ports']) | ([21] + (21000..21010).to_a)
       end
