@@ -1,6 +1,30 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 1.0.0
+
+  - Miguel Negrón
+    - [88dcafc] Merge pull request #75 from redBorder/feature/#26031_implement_snapshot_configuration_rollback
+  - Juan Soto
+    - [861b702] Also open the FTP port range in the public zone
+    - [3c204e9] Reapply "Fix %install chmod stripping directory execute bits"
+    - [0bb0a72] Merge remote updates into feature branch
+    - [098a18d] Update comment referencing cookbook-rb-backup-transfer (renamed to cookbook-vsftpd)
+    - [d294787] Revert "Fix %install chmod stripping directory execute bits"
+    - [6c36a47] Revert "Ignore Gemfile.lock"
+    - [a9fe516] Gate FTP firewall ports on manager_services['ftp'] inside the provider
+    - [cc54f5f] Revert "Build source tarball via tar instead of git archive"
+    - [e58ccc3] Merge development into feature/#26031_implement_snapshot_configuration_rollback
+    - [770f1f9] Move FTP/TFTP ports out of the static firewall port table
+    - [29de08a] Fix %install chmod stripping directory execute bits
+    - [829cd92] Merge branch 'development' of github.com:redBorder/cookbook-rb-firewall into feature/#26031_implement_snapshot_configuration_rollback
+    - [398e4f4] Open FTP/TFTP ports for config-snapshot backup transfer
+    - [ab5b226] Build source tarball via tar instead of git archive
+    - [4d35ab6] Ignore Gemfile.lock
+  - manegron
+    - [88dcafc] Merge pull request #75 from redBorder/feature/#26031_implement_snapshot_configuration_rollback
+    - [160491f] Merge branch 'master' into feature/#26031_implement_snapshot_configuration_rollback
+
 ## 0.14.0
 
   - Vimesa
