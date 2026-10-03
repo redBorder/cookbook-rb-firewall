@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 1.0.1
+
+  - manegron
+    - [f4439a9] Upload cookbook only if opscode-erchef is active
+
 ## 1.0.0
 
   - Miguel Negrón
