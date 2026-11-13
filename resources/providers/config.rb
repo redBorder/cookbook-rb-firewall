@@ -226,6 +226,15 @@ action :add do
     end
   end
 
+  # f2k and sfacctd /health, checked by keepalived on every manager
+  if is_manager?
+    get_ips_of_other_managers.each do |ip|
+      [7983, 7984].each do |health_port|
+        all_managed_rich_rules['public'] << "rule family=\"ipv4\" source address=\"#{ip}\" port port=\"#{health_port}\" protocol=\"tcp\" accept"
+      end
+    end
+  end
+
   # grr services
   if is_manager?
     grr_ports = {
