@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 1.0.2
+
+  - Vimesa
+    - [4b1ce31] Add the FleetSpeak port to the public zone (#81)
+
 ## 1.0.1
 
   - manegron
