@@ -226,7 +226,7 @@ action :add do
     end
   end
 
-  # f2k and sfacctd /health, checked by keepalived on every manager
+  # redborder-netflow2kafka and redborder-sflow2kafka /health, checked by keepalived on every manager
   if is_manager?
     get_ips_of_other_managers.each do |ip|
       [7983, 7984].each do |health_port|
