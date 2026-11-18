@@ -62,7 +62,7 @@ jobs:
         if: success()
         run: |
           docker exec -u builder builder bash -c "git config --global --add safe.directory /build"
-          docker exec -u builder builder bash -c "cd /build/ && VERSION=${{ env.TAG }} make rpm"s
+          docker exec -u builder builder bash -c "cd /build/ && VERSION=${{ env.TAG }} make rpm"
 
       - name: Copy RPMS
         if: success()
