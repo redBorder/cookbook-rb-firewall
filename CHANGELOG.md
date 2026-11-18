@@ -1,6 +1,19 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 2.0.0
+
+  - Miguel Negrón
+    - [c8d7d61] Merge pull request #80 from redBorder/Improvement/#27136_replace_services_with_x2kafka
+  - flopez-redborder
+    - [e507eb1] Fix typo in RPM build command
+  - manegron
+    - [c8d7d61] Merge pull request #80 from redBorder/Improvement/#27136_replace_services_with_x2kafka
+    - [6075e2a] Rename netflow2kafka and sflow2kafka
+  - Juan Soto
+    - [570aac3] Open the health ports to every address of the other managers
+    - [9fd48f9] Open the f2k and sfacctd health ports between managers
+
 ## 1.0.2
 
   - Vimesa
