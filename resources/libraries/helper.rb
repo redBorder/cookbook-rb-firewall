@@ -133,6 +133,26 @@ module Firewall
       sensors.map { |s| { ipaddress: s['ipaddress'] } }
     end
 
+    # Returns every IPv4 address of the other managers. keepalived checks the services from
+    # the address of the network the virtual IP is in, which may not be the node ipaddress.
+    def get_ips_of_other_managers
+      ips = []
+      search(:node, 'role:manager').each do |manager|
+        next if manager.name == node.name
+
+        ips << manager['ipaddress']
+        interfaces = manager.dig('network', 'interfaces') || {}
+        interfaces.each do |iface, data|
+          next if iface.to_s.start_with?('lo')
+
+          (data['addresses'] || {}).each do |address, properties|
+            ips << address if properties['family'] == 'inet'
+          end
+        end
+      end
+      ips.compact.select { |ip| valid_ip?(ip) }.uniq.sort
+    end
+
     # Returns a list of IPs of sensors that are sending sFlow data to the local node.
     def get_ips_allowed_for_sflow(flow_sensors, flow_sensor_in_proxy_nodes, ip_addr)
       proxy_uuids = flow_sensor_in_proxy_nodes.flat_map { |h| h.values.map { |v| v['sensor_uuid'] } }.compact
