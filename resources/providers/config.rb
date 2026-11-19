@@ -238,7 +238,7 @@ action :add do
   # grr services
   if is_manager?
     grr_ports = {
-      'grr-fleetspeak' => { 8443 => %w(public) },
+      'grr-fleetspeak' => { 8443 => %w(home public) },
       'grr-adminui'    => { 8002 => %w(home public) },
       'grr-frontend'   => { 8084 => %w(home) },
     }

@@ -1,6 +1,11 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 2.0.1
+
+  - flopez-redborder
+    - [7cf322e] Bugfix/#27215 add 8443 to home zone (#85)
+
 ## 2.0.0
 
   - Miguel Negrón
