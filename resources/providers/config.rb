@@ -254,13 +254,12 @@ action :add do
     end
   end
 
-  # redborder-hub
+  # redborder-hub: only reached through the sync network (hub peers and nginx
+  # upstreams). Satellites connect through nginx on 443. Any 8010 left open in
+  # public is closed by the removal pass above.
   if is_manager?
     hub_action = new_resource.manager_services['redborder-hub'] ? :create : :delete
-
-    %w(home public).each do |zone|
-      apply_rule(:port, { port: 8010, action: hub_action }, zone, 'tcp')
-    end
+    apply_rule(:port, { port: 8010, action: hub_action }, 'home', 'tcp')
   end
 
   all_managed_rich_rules.each do |zone, final_rules|
