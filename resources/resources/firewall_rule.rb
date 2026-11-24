@@ -24,7 +24,7 @@ action :create do
       Array(new_resource.port).each do |port|
         command = "firewall-cmd --zone=#{new_resource.zone} --add-port=#{port}/#{new_resource.protocol}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -32,7 +32,7 @@ action :create do
       Array(new_resource.protocols).each do |prot|
         command = "firewall-cmd --zone=#{new_resource.zone} --add-protocol=#{prot}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -40,7 +40,7 @@ action :create do
       Array(new_resource.rules).each do |rule|
         command = "firewall-cmd --zone=#{new_resource.zone} --add-rich-rule='#{rule}'"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -48,7 +48,7 @@ action :create do
       Array(new_resource.interface).each do |inf|
         command = "firewall-cmd --zone=#{new_resource.zone} --add-interface=#{inf}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -56,7 +56,7 @@ action :create do
       Array(new_resource.sources).each do |src|
         command = "firewall-cmd --zone=#{new_resource.zone} --add-source=#{src}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
   else
@@ -76,7 +76,7 @@ action :delete do
       Array(new_resource.port).each do |port|
         command = "firewall-cmd --zone=#{new_resource.zone} --remove-port=#{port}/#{new_resource.protocol}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -84,7 +84,7 @@ action :delete do
       Array(new_resource.protocols).each do |prot|
         command = "firewall-cmd --zone=#{new_resource.zone} --remove-protocol=#{prot}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -92,7 +92,7 @@ action :delete do
       Array(new_resource.rules).each do |rule|
         command = "firewall-cmd --zone=#{new_resource.zone} --remove-rich-rule='#{rule}'"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -100,7 +100,7 @@ action :delete do
       Array(new_resource.interface).each do |inf|
         command = "firewall-cmd --zone=#{new_resource.zone} --remove-interface=#{inf}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
@@ -108,7 +108,7 @@ action :delete do
       Array(new_resource.sources).each do |src|
         command = "firewall-cmd --zone=#{new_resource.zone} --remove-source=#{src}"
         command += ' --permanent' if new_resource.permanent
-        shell_out!(command)
+        converge_by("execute #{command}") { shell_out!(command) }
       end
     end
 
