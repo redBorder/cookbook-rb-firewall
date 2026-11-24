@@ -73,6 +73,7 @@ action :add do
   all_managed_rich_rules = Hash.new { |hash, key| hash[key] = [] }
   needs_libvirt = new_resource.needs_libvirt_zone
   manager_services = new_resource.manager_services || {}
+  proxy_services = new_resource.proxy_services || {}
 
   dnf_package 'firewalld' do
     action :upgrade
@@ -142,7 +143,10 @@ action :add do
       # alone isn't enough, since devices are typically only routable via
       # public (confirmed live: device's FTP push never reached vsftpd at
       # all when only home had the port open).
-      if role == 'manager' && %w(home public).include?(zone) && manager_services['ftp']
+      # Same on a proxy (public only), for devices only that proxy reaches.
+      ftp_enabled = (role == 'manager' && %w(home public).include?(zone) && manager_services['ftp']) ||
+                    (role == 'proxy' && zone == 'public' && proxy_services['ftp'])
+      if ftp_enabled
         zone_rules = zone_rules.dup
         zone_rules['tcp_ports'] = Array(zone_rules['tcp_ports']) | ([21] + (21000..21010).to_a)
       end
