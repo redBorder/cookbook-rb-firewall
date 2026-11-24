@@ -1,6 +1,17 @@
 cookbook-rb-firewall CHANGELOG
 ===============
 
+## 2.2.0
+
+  - Miguel Negrón
+    - [4aca2a7] Merge pull request #79 from redBorder/feature/#26715_make_backup_policy_compatible_with_proxies
+  - manegron
+    - [4aca2a7] Merge pull request #79 from redBorder/feature/#26715_make_backup_policy_compatible_with_proxies
+    - [bff71c9] resources/
+    - [55d83bc] Merge branch 'development' into feature/#26715_make_backup_policy_compatible_with_proxies
+  - Juan Soto
+    - [9b02595] Open FTP ports in a proxy's public zone when its ftp service is enabled
+
 ## 2.1.0
 
   - manegron
